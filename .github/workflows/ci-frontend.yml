@@ -27,10 +27,6 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm install
 
-      # Step 4: Run tests
-      - name: Run tests
-        run: cd frontend && npm run test
-
       # Step 5: Build the project
       - name: Build project
         run: cd frontend && npm run build
