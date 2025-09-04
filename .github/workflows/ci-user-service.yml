@@ -9,7 +9,7 @@ on:
       - master
 
 jobs:
-  backend-ci:
+  user-service-ci:
     runs-on: ubuntu-latest
 
     steps:
