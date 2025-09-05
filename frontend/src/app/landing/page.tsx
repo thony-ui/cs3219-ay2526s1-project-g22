@@ -56,12 +56,12 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative px-4 py-24 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-4xl text-center">
+        <div className="mx-auto max-w-5xl text-center">
           <h1 className="mb-6 text-5xl font-bold leading-tight text-white sm:text-6xl lg:text-7xl">
             Code Together,
             <span className="bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
               {" "}
-              Build Better
+              Learn Better
             </span>
           </h1>
           <p className="mb-8 text-xl text-blue-200 sm:text-2xl">

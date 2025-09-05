@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Frontend Repository
 
-## Getting Started
+This is the frontend repository for the project. Follow the steps below to set up and run the application locally.
 
-First, run the development server:
+---
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Setup Instructions
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. **Copy the Environment File**:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+   - Copy the `env.example` file and rename it to `.env` in the root directory.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. **Get Environment Variables**:
 
-## Learn More
+   - Obtain the required environment variables from the repository owner and add them to the `.env` file.
 
-To learn more about Next.js, take a look at the following resources:
+3. **Install Dependencies**:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   - Run the following command to install all required dependencies:
+     ```bash
+     npm install
+     ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+4. **Run the Development Server**:
+   - Start the development server with:
+     ```bash
+     npm run dev
+     ```
 
-## Deploy on Vercel
+---
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Technical Details
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Backend Communication
+
+- **Axios**:
+  - The frontend uses `axios` to communicate with the backend.
+  - Axios intercepts each request and attaches the user's request ID as a `Bearer` token in the request headers.
+  - The backend verifies this token using the JWT secret to ensure it is signed by the same entity.
+  - If the token is valid, the request is allowed through. Otherwise, an unauthorized error is returned.
+
+---
+
+### Adding a New Page
+
+- To add a new page:
+  1. Navigate to the `src/app` directory.
+  2. Create a new folder with the name of the route (e.g., `about` for `/about`).
+  3. Inside the folder, create a `page.tsx` file. This file will define the content of the page.
+  - Next.js will automatically route to this page based on the folder name.
+
+---
+
+### Data Fetching
+
+- The application uses **React Query** for data fetching and state management.
+- **GET Requests**:
+  - Use React Query's `queries` for all `GET` requests. They should be in the queries folder
+- **POST and Other Requests**:
+  - Use React Query's `mutations` for `POST`, `PUT`, `DELETE`, and other non-GET requests. They should be in the mutations folder.
+
+---
+
+### UI Materials
+
+- You can use any UI library for building components.
+- For simplicity, we recommend using [shadcn](https://shadcn.dev/), which provides a clean and customizable UI component library.
+
+---
+
+### Contexts
+
+- The application provides a `useUser()` context to access user details throughout the app.
+
+---
+
+## Additional Notes
+
+- Ensure you have the correct environment variables in your `.env` file before running the application.
+- Follow the folder structure and conventions to maintain consistency across the project.

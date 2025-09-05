@@ -1,6 +1,12 @@
 version: "3.8"
 
 services:
+  redis:
+    image: redis:7
+    container_name: redis-local
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
   api-gateway:
     build:
       context: .
@@ -25,7 +31,7 @@ services:
     volumes:
       - ./user-service/src:/app/src
     env_file:
-      - ./user-service/.env
+      - .env
     networks:
       - shared-network
 
