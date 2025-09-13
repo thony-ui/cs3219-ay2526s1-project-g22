@@ -27,6 +27,7 @@ import { useState } from "react";
 import { Header } from "../_components/Header";
 import Footer from "../_components/Footer";
 import { invalidateUser, useUpdateUser } from "@/mutations/use-update-user";
+import { showToast } from "@/utils/toast-helper";
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -46,9 +47,17 @@ export default function ProfilePage() {
 
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await updateUser(editForm);
-    invalidateUser();
-    setIsEditDialogOpen(false);
+    try {
+      await updateUser(editForm);
+      showToast("Profile updated successfully", {
+        success: true,
+      });
+      invalidateUser();
+    } catch (error) {
+      console.error("Error updating user:", error);
+    } finally {
+      setIsEditDialogOpen(false);
+    }
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
