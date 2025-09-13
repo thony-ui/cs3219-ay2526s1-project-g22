@@ -17,6 +17,38 @@ interface IFormData {
   password: string;
   name: string;
 }
+
+const validatePassword = (password: string): string | null => {
+  // NIST guidelines recommend at least 15 characters
+  if (password.length < 15) {
+    return "Password must be at least 15 characters long.";
+  }
+
+  // Optional: Enforce complexity (e.g., uppercase, lowercase, number, special character)
+  const hasUppercase = /[A-Z]/.test(password);
+  const hasLowercase = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+
+  if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
+    return "Password must include uppercase, lowercase, a number, and a special character.";
+  }
+
+  // Optional: Check against a blacklist of common passwords (e.g., "password123")
+  const commonPasswords = [
+    "password",
+    "123456",
+    "qwerty",
+    "letmein",
+    "12345678",
+  ];
+  if (commonPasswords.includes(password.toLowerCase())) {
+    return "Password is too common. Please choose a stronger password.";
+  }
+
+  return null; // Password is valid
+};
+
 export function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,14 +74,17 @@ export function SignUpForm() {
       .select("*")
       .eq("email", formData.email)
       .single();
-    if (error) {
-      showToast("Error checking email: " + error.message, { success: false });
+
+    if (data) {
+      showToast("Email already exists", { success: false });
       setIsLoading(false);
       return;
     }
 
-    if (data) {
-      showToast("Email already exists", { success: false });
+    // validate password
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      showToast(passwordError, { success: false });
       setIsLoading(false);
       return;
     }
