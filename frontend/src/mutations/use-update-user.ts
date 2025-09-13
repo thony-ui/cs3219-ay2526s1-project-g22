@@ -7,6 +7,8 @@ const baseUrl = `${microServiceEntryPoint}/v1/users`;
 
 interface IUpdateUser {
   name: string;
+
+  avatar_url?: string; // Optional field for avatar URL
 }
 
 export const useUpdateUser = () => {

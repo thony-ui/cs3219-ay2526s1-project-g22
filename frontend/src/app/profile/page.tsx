@@ -21,17 +21,21 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Edit2, Trophy, Target, Zap } from "lucide-react";
+import { Edit2, Trophy, Target, Upload, Loader2 } from "lucide-react";
 import { useUser } from "@/contexts/user-context";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Header } from "../_components/Header";
 import Footer from "../_components/Footer";
 import { invalidateUser, useUpdateUser } from "@/mutations/use-update-user";
 import { showToast } from "@/utils/toast-helper";
+import { createClient } from "@/lib/supabase/supabase-client";
 
 export default function ProfilePage() {
   const { user } = useUser();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [editForm, setEditForm] = useState({
     name: user?.name || "",
   });
@@ -43,6 +47,88 @@ export default function ProfilePage() {
     easy: 45,
     medium: 62,
     hard: 20,
+  };
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      showToast("Please select a valid image file (JPEG, PNG, GIF, or WebP)", {
+        success: false,
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB in bytes
+    if (file.size > maxSize) {
+      showToast("File size must be less than 5MB", {
+        success: false,
+      });
+      return;
+    }
+
+    setIsUploadingAvatar(true);
+
+    try {
+      // Create preview
+      const previewUrl = URL.createObjectURL(file);
+      setAvatarPreview(previewUrl);
+
+      // Upload to Supabase Storage
+      const supabase = createClient();
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("profile-pictures")
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: true,
+        });
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("profile-pictures").getPublicUrl(filePath);
+
+      // Update user profile with new avatar URL
+      await updateUser({
+        name: user?.name || "",
+        avatar_url: publicUrl,
+      });
+
+      showToast("Profile picture updated successfully", {
+        success: true,
+      });
+
+      invalidateUser();
+    } catch (error) {
+      showToast("Failed to update profile picture", {
+        success: false,
+      });
+      setAvatarPreview(null);
+    } finally {
+      setIsUploadingAvatar(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -77,19 +163,50 @@ export default function ProfilePage() {
             <Card className="bg-slate-800/50 border-blue-800/30 backdrop-blur-sm">
               <CardHeader>
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage
-                      src={`https://api.dicebear.com/7.x/initials/svg?seed=${
-                        user?.name || user?.email
-                      }`}
-                      alt={user?.name || "User"}
+                  <div className="relative">
+                    <Avatar
+                      className="h-24 w-24 cursor-pointer transition-all hover:opacity-80 hover:scale-105"
+                      onClick={handleAvatarClick}
+                    >
+                      <AvatarImage
+                        src={
+                          avatarPreview ||
+                          user?.avatar_url ||
+                          `https://api.dicebear.com/7.x/initials/svg?seed=${
+                            user?.name || user?.email
+                          }`
+                        }
+                        alt={user?.name || "User"}
+                      />
+                      <AvatarFallback className="text-2xl">
+                        {user?.name?.charAt(0) ||
+                          user?.email?.charAt(0).toUpperCase() ||
+                          "U"}
+                      </AvatarFallback>
+                    </Avatar>
+
+                    {/* Upload overlay */}
+                    <div
+                      className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity cursor-pointer"
+                      onClick={handleAvatarClick}
+                    >
+                      {isUploadingAvatar ? (
+                        <Loader2 className="h-6 w-6 text-white animate-spin" />
+                      ) : (
+                        <Upload className="h-6 w-6 text-white" />
+                      )}
+                    </div>
+
+                    {/* Hidden file input */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp"
+                      onChange={handleFileChange}
+                      className="hidden"
+                      disabled={isUploadingAvatar}
                     />
-                    <AvatarFallback className="text-2xl">
-                      {user?.name?.charAt(0) ||
-                        user?.email?.charAt(0).toUpperCase() ||
-                        "U"}
-                    </AvatarFallback>
-                  </Avatar>
+                  </div>
 
                   <div className="flex-1 space-y-2">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -97,6 +214,9 @@ export default function ProfilePage() {
                         <h1 className="text-3xl font-bold text-white">
                           {user?.name || "User"}
                         </h1>
+                        <p className="text-sm text-gray-300 mt-1">
+                          Click on your avatar to change your profile picture
+                        </p>
                       </div>
 
                       <Dialog
@@ -150,7 +270,7 @@ export default function ProfilePage() {
               </CardHeader>
             </Card>
 
-            {/* Questions Solved Statistics */}
+            {/* Rest of your existing code for Questions Solved Statistics */}
             <Card className="bg-slate-800/50 border-blue-800/30 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-white">
