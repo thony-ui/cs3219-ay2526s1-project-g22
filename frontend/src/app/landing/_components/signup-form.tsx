@@ -10,6 +10,7 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { signUpAction } from "../actions/signup";
 import { showToast } from "@/utils/toast-helper";
 import SignInWithGoogleButton from "./SignInWithGoogle";
+import { createClient } from "@/lib/supabase/supabase-client";
 
 interface IFormData {
   email: string;
@@ -34,6 +35,24 @@ export function SignUpForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const supabase = createClient();
+    // first check for duplicate email
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", formData.email)
+      .single();
+    if (error) {
+      showToast("Error checking email: " + error.message, { success: false });
+      setIsLoading(false);
+      return;
+    }
+
+    if (data) {
+      showToast("Email already exists", { success: false });
+      setIsLoading(false);
+      return;
+    }
 
     try {
       // need to show toast first
