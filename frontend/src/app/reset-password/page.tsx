@@ -5,6 +5,8 @@ import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
 import { createClient } from "../../lib/supabase/supabase-client";
+import { validatePasswordRequirements } from "@/utils/password-helper";
+import { showToast } from "@/utils/toast-helper";
 
 export default function ResetPasswordPage() {
   const supabase = createClient();
@@ -12,20 +14,31 @@ export default function ResetPasswordPage() {
   const [status, setStatus] = useState<
     "idle" | "loading" | "success" | "error"
   >("idle");
-  const [message, setMessage] = useState("");
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setPassword(e.target.value);
+    setPasswordRequirements(validatePasswordRequirements(e.target.value));
+  };
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
-    setMessage("");
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       setStatus("error");
-      setMessage(error.message);
+      showToast("Error updating password: " + error.message, {
+        success: false,
+      });
     } else {
       setStatus("success");
-      setMessage("Password updated! Redirecting to dashboard...");
+      showToast("Password updated successfully!", { success: true });
       router.push("/");
     }
   };
@@ -41,7 +54,7 @@ export default function ResetPasswordPage() {
             type="password"
             placeholder="Enter your new password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={handleChange}
             required
             disabled={status === "loading"}
             className="mt-2"
@@ -54,14 +67,55 @@ export default function ResetPasswordPage() {
         >
           {status === "loading" ? "Updating..." : "Update Password"}
         </Button>
-        {message && (
-          <div
-            className={`text-sm mt-2 ${
-              status === "error" ? "text-red-500" : "text-green-600"
-            }`}
-          >
-            {message}
-          </div>
+        {password && (
+          <ul className="mt-2 text-sm">
+            <li
+              className={`${
+                passwordRequirements.length ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.length ? "✔" : "✘"} At least 15 characters
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasUppercase
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasUppercase ? "✔" : "✘"} At least one
+              uppercase letter
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasLowercase
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasLowercase ? "✔" : "✘"} At least one
+              lowercase letter
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasNumber
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasNumber ? "✔" : "✘"} At least one number
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasSpecialChar
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasSpecialChar ? "✔" : "✘"} At least one
+              special character
+            </li>
+          </ul>
         )}
       </form>
     </div>
