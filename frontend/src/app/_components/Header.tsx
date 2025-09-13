@@ -45,9 +45,12 @@ export function Header() {
               >
                 <Avatar className="h-9 w-9">
                   <AvatarImage
-                    src={`https://api.dicebear.com/7.x/initials/svg?seed=${
-                      user?.name || user?.email
-                    }`}
+                    src={
+                      user?.avatar_url ||
+                      `https://api.dicebear.com/7.x/initials/svg?seed=${
+                        user?.name || user?.email
+                      }`
+                    }
                     alt={user?.name || "User"}
                   />
                   <AvatarFallback className="text-sm font-medium">

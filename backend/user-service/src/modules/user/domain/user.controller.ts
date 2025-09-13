@@ -52,10 +52,10 @@ export class UserController {
     res: Response,
     next: NextFunction
   ): Promise<void> => {
-    const { name } = req.body;
+    const { name, avatar_url } = req.body;
     const id = req.user.id;
     try {
-      const parsedData = validateUpdateUser({ id, name });
+      const parsedData = validateUpdateUser({ id, name, avatar_url });
       logger.info(
         `UserController: updateUser called with data: ${JSON.stringify(
           parsedData
