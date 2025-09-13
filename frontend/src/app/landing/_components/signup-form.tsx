@@ -11,43 +11,16 @@ import { signUpAction } from "../actions/signup";
 import { showToast } from "@/utils/toast-helper";
 import SignInWithGoogleButton from "./SignInWithGoogle";
 import { createClient } from "@/lib/supabase/supabase-client";
+import {
+  validatePassword,
+  validatePasswordRequirements,
+} from "@/utils/password-helper";
 
 interface IFormData {
   email: string;
   password: string;
   name: string;
 }
-
-const validatePassword = (password: string): string | null => {
-  // NIST guidelines recommend at least 15 characters
-  if (password.length < 15) {
-    return "Password must be at least 15 characters long.";
-  }
-
-  // Optional: Enforce complexity (e.g., uppercase, lowercase, number, special character)
-  const hasUppercase = /[A-Z]/.test(password);
-  const hasLowercase = /[a-z]/.test(password);
-  const hasNumber = /[0-9]/.test(password);
-  const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-
-  if (!hasUppercase || !hasLowercase || !hasNumber || !hasSpecialChar) {
-    return "Password must include uppercase, lowercase, a number, and a special character.";
-  }
-
-  // Optional: Check against a blacklist of common passwords (e.g., "password123")
-  const commonPasswords = [
-    "password",
-    "123456",
-    "qwerty",
-    "letmein",
-    "12345678",
-  ];
-  if (commonPasswords.includes(password.toLowerCase())) {
-    return "Password is too common. Please choose a stronger password.";
-  }
-
-  return null; // Password is valid
-};
 
 export function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -57,11 +30,21 @@ export function SignUpForm() {
     password: "",
     name: "",
   });
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
+    if (e.target.name === "password") {
+      setPasswordRequirements(validatePasswordRequirements(e.target.value));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -179,6 +162,57 @@ export function SignUpForm() {
             )}
           </button>
         </div>
+        {/* Password requirements */}
+        {formData.password && (
+          <ul className="mt-2 text-sm">
+            <li
+              className={`${
+                passwordRequirements.length ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.length ? "✔" : "✘"} At least 15 characters
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasUppercase
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasUppercase ? "✔" : "✘"} At least one
+              uppercase letter
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasLowercase
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasLowercase ? "✔" : "✘"} At least one
+              lowercase letter
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasNumber
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasNumber ? "✔" : "✘"} At least one number
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasSpecialChar
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasSpecialChar ? "✔" : "✘"} At least one
+              special character
+            </li>
+          </ul>
+        )}
       </div>
 
       <Button
