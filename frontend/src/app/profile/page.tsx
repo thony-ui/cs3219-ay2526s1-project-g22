@@ -26,14 +26,15 @@ import { useUser } from "@/contexts/user-context";
 import { useState } from "react";
 import { Header } from "../_components/Header";
 import Footer from "../_components/Footer";
+import { invalidateUser, useUpdateUser } from "@/mutations/use-update-user";
 
 export default function ProfilePage() {
   const { user } = useUser();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editForm, setEditForm] = useState({
     name: user?.name || "",
-    email: user?.email || "",
   });
+  const { mutateAsync: updateUser } = useUpdateUser();
 
   // Mock data for questions solved - replace with actual data from your backend
   const questionsStats = {
@@ -43,10 +44,10 @@ export default function ProfilePage() {
     hard: 20,
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implement profile update logic
-    console.log("Profile update:", editForm);
+    await updateUser(editForm);
+    invalidateUser();
     setIsEditDialogOpen(false);
   };
 
@@ -119,17 +120,6 @@ export default function ProfilePage() {
                                 value={editForm.name}
                                 onChange={handleInputChange}
                                 placeholder="Enter your display name"
-                              />
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="email">Email</Label>
-                              <Input
-                                id="email"
-                                name="email"
-                                type="email"
-                                value={editForm.email}
-                                onChange={handleInputChange}
-                                placeholder="Enter your email"
                               />
                             </div>
                             <div className="flex justify-end gap-2">

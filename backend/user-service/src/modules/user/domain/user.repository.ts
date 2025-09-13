@@ -40,4 +40,23 @@ export class UserRepository implements IUserService {
     );
     return data;
   };
+
+  updateUserInDatabase = async ({ id, name }: { id: string; name: string }) => {
+    const { data, error } = await supabase
+      .from("users")
+      .update({ name })
+      .eq("id", id)
+      .select();
+
+    if (error) {
+      logger.error(
+        `UserRepository: updateUserInDatabase error: ${error.message}`
+      );
+      throw new Error(`Error updating user: ${error.message}`);
+    }
+    logger.info(
+      `UserRepository: updateUserInDatabase success: ${JSON.stringify(data)}`
+    );
+    return data;
+  };
 }

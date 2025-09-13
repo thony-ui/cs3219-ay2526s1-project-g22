@@ -11,6 +11,7 @@ export function defineUserRoutes(expressApp: Application) {
   const userController = new UserController(userService);
   userRouter.post("/", userController.postUser);
   userRouter.get("/", userController.getUser);
+  userRouter.put("/", userController.updateUser);
 
   expressApp.use("/v1/users", authenticateUser, userRouter);
 }
