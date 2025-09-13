@@ -26,7 +26,7 @@ app.use(bodyParser.json());
 
 defineUserRoutes(app);
 
-const port = process.env.PORT || 8000;
+const port = process.env.USER_SERVICE_PORT || 6001;
 let server: Server;
 
 server = app.listen(port, () => {
