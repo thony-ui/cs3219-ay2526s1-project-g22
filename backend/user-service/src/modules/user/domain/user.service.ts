@@ -28,12 +28,26 @@ export class UserService implements IUserService {
     return data[0];
   };
 
-  updateUserInDatabase = async ({ id, name }: { id: string; name: string }) => {
-    const data = await this.userRepository.updateUserInDatabase({ id, name });
+  updateUserInDatabase = async ({
+    id,
+    name,
+    avatar_url,
+  }: {
+    id: string;
+    name: string;
+    avatar_url?: string;
+  }) => {
+    const data = await this.userRepository.updateUserInDatabase({
+      id,
+      name,
+      avatar_url,
+    });
     logger.info(
       `UserService: updateUserInDatabase called with id: ${JSON.stringify(
         id
-      )} and name: ${JSON.stringify(name)}`
+      )} and name: ${JSON.stringify(name)} and avatar_url: ${JSON.stringify(
+        avatar_url
+      )}`
     );
     return data;
   };
