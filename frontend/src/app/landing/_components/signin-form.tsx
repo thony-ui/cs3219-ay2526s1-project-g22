@@ -6,11 +6,11 @@ import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { signInAction } from "../actions/signin";
 import SignInWithGoogleButton from "./SignInWithGoogle";
+import { showToast } from "@/utils/toast-helper";
 
 export function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -33,21 +33,16 @@ export function SignInForm() {
     setIsLoading(true);
 
     try {
-      await signInAction(formData.email, formData.password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+      const error = await signInAction(formData.email, formData.password);
+      if (error) {
+        showToast(error, { success: false });
+      }
     } finally {
       setIsLoading(false);
     }
   };
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {error && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
-
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input

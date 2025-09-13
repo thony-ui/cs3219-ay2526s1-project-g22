@@ -10,12 +10,18 @@ import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import { signUpAction } from "../actions/signup";
 import { showToast } from "@/utils/toast-helper";
 import SignInWithGoogleButton from "./SignInWithGoogle";
+import { createClient } from "@/lib/supabase/supabase-client";
+import {
+  validatePassword,
+  validatePasswordRequirements,
+} from "@/utils/password-helper";
 
 interface IFormData {
   email: string;
   password: string;
   name: string;
 }
+
 export function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -24,16 +30,47 @@ export function SignUpForm() {
     password: "",
     name: "",
   });
+  const [passwordRequirements, setPasswordRequirements] = useState({
+    length: false,
+    hasUppercase: false,
+    hasLowercase: false,
+    hasNumber: false,
+    hasSpecialChar: false,
+  });
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData((prev) => ({
       ...prev,
       [e.target.name]: e.target.value,
     }));
+    if (e.target.name === "password") {
+      setPasswordRequirements(validatePasswordRequirements(e.target.value));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    const supabase = createClient();
+    // first check for duplicate email
+    const { data, error } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", formData.email)
+      .single();
+
+    if (data) {
+      showToast("Email already exists", { success: false });
+      setIsLoading(false);
+      return;
+    }
+
+    // validate password
+    const passwordError = validatePassword(formData.password);
+    if (passwordError) {
+      showToast(passwordError, { success: false });
+      setIsLoading(false);
+      return;
+    }
 
     try {
       // need to show toast first
@@ -125,6 +162,57 @@ export function SignUpForm() {
             )}
           </button>
         </div>
+        {/* Password requirements */}
+        {formData.password && (
+          <ul className="mt-2 text-sm">
+            <li
+              className={`${
+                passwordRequirements.length ? "text-green-500" : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.length ? "✔" : "✘"} At least 15 characters
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasUppercase
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasUppercase ? "✔" : "✘"} At least one
+              uppercase letter
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasLowercase
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasLowercase ? "✔" : "✘"} At least one
+              lowercase letter
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasNumber
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasNumber ? "✔" : "✘"} At least one number
+            </li>
+            <li
+              className={`${
+                passwordRequirements.hasSpecialChar
+                  ? "text-green-500"
+                  : "text-red-500"
+              }`}
+            >
+              {passwordRequirements.hasSpecialChar ? "✔" : "✘"} At least one
+              special character
+            </li>
+          </ul>
+        )}
       </div>
 
       <Button

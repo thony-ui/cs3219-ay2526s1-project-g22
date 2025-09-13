@@ -32,7 +32,7 @@ export async function signIn(email: string, password: string) {
   if (error || !data.user) {
     return {
       success: false,
-      error: error?.message || "Invalid email or password",
+      error: "Invalid email or password",
     };
   }
   return {
