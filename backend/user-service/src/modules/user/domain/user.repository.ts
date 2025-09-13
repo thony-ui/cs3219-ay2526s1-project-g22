@@ -41,10 +41,18 @@ export class UserRepository implements IUserService {
     return data;
   };
 
-  updateUserInDatabase = async ({ id, name }: { id: string; name: string }) => {
+  updateUserInDatabase = async ({
+    id,
+    name,
+    avatar_url,
+  }: {
+    id: string;
+    name: string;
+    avatar_url?: string;
+  }) => {
     const { data, error } = await supabase
       .from("users")
-      .update({ name })
+      .update({ name, avatar_url })
       .eq("id", id)
       .select();
 

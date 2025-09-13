@@ -44,6 +44,7 @@ export function validateGetUser(data: unknown): TGetUserValidator {
 const updateUserValidator = z.object({
   id: z.string().uuid("Invalid user ID format"),
   name: z.string().min(1, "Name is required"),
+  avatar_url: z.string().url("Invalid URL format").optional(),
 });
 type TUpdateUserValidator = z.infer<typeof updateUserValidator>;
 

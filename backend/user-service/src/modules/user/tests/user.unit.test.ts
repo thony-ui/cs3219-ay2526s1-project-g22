@@ -68,7 +68,27 @@ describe("IUser Service", () => {
     const userWithoutEmail = { id: user.id, name: user.name };
 
     (userRepository.updateUserInDatabase as jest.Mock).mockResolvedValue(user);
-    const result = await userService.updateUserInDatabase(user);
+    const result = await userService.updateUserInDatabase(userWithoutEmail);
+    expect(result).toEqual(user);
+    expect(userRepository.updateUserInDatabase).toHaveBeenCalledWith(
+      userWithoutEmail
+    );
+  });
+  it("should update user in database with avatar_url", async () => {
+    const user: IUser & { avatar_url: string } = {
+      id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      email: "a@gmail.com",
+      name: "Alice",
+      avatar_url: "https://example.com/avatar.jpg",
+    };
+    const userWithoutEmail = {
+      id: user.id,
+      name: user.name,
+      avatar_url: user.avatar_url,
+    };
+
+    (userRepository.updateUserInDatabase as jest.Mock).mockResolvedValue(user);
+    const result = await userService.updateUserInDatabase(userWithoutEmail);
     expect(result).toEqual(user);
     expect(userRepository.updateUserInDatabase).toHaveBeenCalledWith(
       userWithoutEmail

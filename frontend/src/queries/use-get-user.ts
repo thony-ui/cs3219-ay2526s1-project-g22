@@ -9,6 +9,7 @@ export interface IUser {
   email: string;
   // Add other user properties
   name: string;
+  avatar_url?: string; // Optional field for avatar URL
 }
 export const useGetUser = () => {
   const query = useQuery({
