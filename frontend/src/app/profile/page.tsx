@@ -28,7 +28,9 @@ import { Header } from "../_components/Header";
 import Footer from "../_components/Footer";
 import { invalidateUser, useUpdateUser } from "@/mutations/use-update-user";
 import { showToast } from "@/utils/toast-helper";
-import { createClient } from "@/lib/supabase/supabase-client";
+import QuestionStats from "./_components/QuestionStats";
+import ProgressBar from "./_components/ProgressBar";
+import { uploadToStorage } from "./actions/upload-to-storage";
 
 export default function ProfilePage() {
   const { user } = useUser();
@@ -85,31 +87,12 @@ export default function ProfilePage() {
       setAvatarPreview(previewUrl);
 
       // Upload to Supabase Storage
-      const supabase = createClient();
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${user?.id}-${Math.random()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("profile-pictures")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: true,
-        });
-
-      if (uploadError) {
-        throw uploadError;
-      }
-
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("profile-pictures").getPublicUrl(filePath);
+      const avatarUrl = await uploadToStorage(file, user?.id || "");
 
       // Update user profile with new avatar URL
       await updateUser({
         name: user?.name || "",
-        avatar_url: publicUrl,
+        avatar_url: avatarUrl,
       });
 
       showToast("Profile picture updated successfully", {
@@ -299,119 +282,22 @@ export default function ProfilePage() {
                   </div>
 
                   {/* Easy Questions */}
-                  <div className="text-center space-y-2">
-                    <div className="flex justify-center">
-                      <div className="h-16 w-16 rounded-full bg-green-100 flex items-center justify-center">
-                        <Badge className="bg-green-500 hover:bg-green-600 text-white text-lg px-3 py-1">
-                          E
-                        </Badge>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-green-600">
-                        {questionsStats.easy}
-                      </p>
-                      <p className="text-sm text-gray-200">Easy</p>
-                    </div>
-                  </div>
+                  <QuestionStats stats={questionsStats.easy} tag="E" />
 
                   {/* Medium Questions */}
-                  <div className="text-center space-y-2">
-                    <div className="flex justify-center">
-                      <div className="h-16 w-16 rounded-full bg-yellow-100 flex items-center justify-center">
-                        <Badge className="bg-yellow-500 hover:bg-yellow-600 text-white text-lg px-3 py-1">
-                          M
-                        </Badge>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-yellow-600">
-                        {questionsStats.medium}
-                      </p>
-                      <p className="text-sm text-gray-200">Medium</p>
-                    </div>
-                  </div>
+                  <QuestionStats stats={questionsStats.medium} tag="M" />
 
                   {/* Hard Questions */}
-                  <div className="text-center space-y-2">
-                    <div className="flex justify-center">
-                      <div className="h-16 w-16 rounded-full bg-red-100 flex items-center justify-center">
-                        <Badge className="bg-red-500 hover:bg-red-600 text-white text-lg px-3 py-1">
-                          H
-                        </Badge>
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-3xl font-bold text-red-600">
-                        {questionsStats.hard}
-                      </p>
-                      <p className="text-sm text-gray-200">Hard</p>
-                    </div>
-                  </div>
+                  <QuestionStats stats={questionsStats.hard} tag="H" />
                 </div>
 
                 <Separator className="my-6" />
 
                 {/* Progress Bars */}
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-green-600 font-medium">Easy</span>
-                      <span className="text-gray-200">
-                        {questionsStats.easy}/{questionsStats.total}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-green-500 h-2 rounded-full"
-                        style={{
-                          width: `${
-                            (questionsStats.easy / questionsStats.total) * 100
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-yellow-600 font-medium">
-                        Medium
-                      </span>
-                      <span className="text-gray-200">
-                        {questionsStats.medium}/{questionsStats.total}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-yellow-500 h-2 rounded-full"
-                        style={{
-                          width: `${
-                            (questionsStats.medium / questionsStats.total) * 100
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-red-600 font-medium">Hard</span>
-                      <span className="text-gray-200">
-                        {questionsStats.hard}/{questionsStats.total}
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-red-500 h-2 rounded-full"
-                        style={{
-                          width: `${
-                            (questionsStats.hard / questionsStats.total) * 100
-                          }%`,
-                        }}
-                      ></div>
-                    </div>
-                  </div>
+                  <ProgressBar questionsStats={questionsStats} tag="easy" />
+                  <ProgressBar questionsStats={questionsStats} tag="medium" />
+                  <ProgressBar questionsStats={questionsStats} tag="hard" />
                 </div>
               </CardContent>
             </Card>
