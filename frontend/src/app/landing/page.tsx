@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { SignInForm } from "./_components/signin-form";
 import { SignUpForm } from "./_components/signup-form";
+import Footer from "../_components/Footer";
 
 export default function LandingPage() {
   const [displaySignUp, setDisplaySignUp] = useState(false);
@@ -55,7 +56,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Hero Section */}
-      <section className="relative px-4 py-24 sm:px-6 lg:px-8">
+      <section className="relative px-4 py-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl text-center">
           <h1 className="mb-6 text-5xl font-bold leading-tight text-white sm:text-6xl lg:text-7xl">
             Code Together,
@@ -80,7 +81,7 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section className="px-4 pb-20 sm:px-6 lg:px-8">
+      <section className="px-4 pb-16 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-white mb-4">
@@ -153,41 +154,8 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-blue-800/30 bg-slate-900/50 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-          <div className="flex flex-col items-center justify-between space-y-4 sm:flex-row sm:space-y-0">
-            <div className="flex items-center">
-              <Code2 className="h-6 w-6 text-blue-400" />
-              <span className="ml-2 text-lg font-semibold text-white">
-                CodeCollab
-              </span>
-            </div>
-            <div className="flex space-x-6">
-              <Link
-                href="/privacy"
-                className="text-blue-200 hover:text-white transition-colors"
-              >
-                Privacy
-              </Link>
-              <Link
-                href="/terms"
-                className="text-blue-200 hover:text-white transition-colors"
-              >
-                Terms
-              </Link>
-              <Link
-                href="/support"
-                className="text-blue-200 hover:text-white transition-colors"
-              >
-                Support
-              </Link>
-            </div>
-          </div>
-          <div className="mt-8 text-center text-blue-300">
-            <p>&copy; 2025 CodeCollab. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
+
       <Dialog open={displayLogin} onOpenChange={setDisplayLogin}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
