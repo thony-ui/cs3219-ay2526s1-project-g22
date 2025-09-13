@@ -6,12 +6,10 @@ import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Input } from "../../../components/ui/input";
 import { Label } from "../../../components/ui/label";
-import { Alert, AlertDescription } from "../../../components/ui/alert";
 import { EyeIcon, EyeSlashIcon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { signInAction } from "../actions/signin";
 import SignInWithGoogleButton from "./SignInWithGoogle";
-import { createClient } from "@/lib/supabase/supabase-client";
 import { showToast } from "@/utils/toast-helper";
 
 export function SignInForm() {
