@@ -6,4 +6,6 @@ export interface IUser {
 export interface IUserService {
   postUserToDatabase: ({ id, email, name }: IUser) => any;
   getUserFromDataBase: ({ id }: { id: string }) => any;
+
+  updateUserInDatabase: ({ id, name }: { id: string; name: string }) => any;
 }

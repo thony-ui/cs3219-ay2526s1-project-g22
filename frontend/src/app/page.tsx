@@ -1,16 +1,13 @@
-"use client";
-import { Button } from "@/components/ui/button";
-import { signOut } from "@/lib/auth";
+import { Header } from "./_components/Header";
+import Footer from "./_components/Footer";
 
 export default function Home() {
-  const logOut = async () => {
-    await signOut();
-  };
   return (
-    <div className="flex flex-col items-center justify-center w-full h-full">
-      <Button onClick={logOut} className="px-12 py-6">
-        Logout
-      </Button>
+    <div className="flex flex-col items-center justify-center w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+      <Header />
+      <main className="flex-grow"></main>
+
+      <Footer />
     </div>
   );
 }

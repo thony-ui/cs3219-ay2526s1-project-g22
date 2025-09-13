@@ -40,3 +40,23 @@ export function validateGetUser(data: unknown): TGetUserValidator {
     throw error; // rethrow unexpected errors
   }
 }
+
+const updateUserValidator = z.object({
+  id: z.string().uuid("Invalid user ID format"),
+  name: z.string().min(1, "Name is required"),
+});
+type TUpdateUserValidator = z.infer<typeof updateUserValidator>;
+
+export function validateUpdateUser(data: unknown): TUpdateUserValidator {
+  try {
+    const parsed = updateUserValidator.parse(data);
+    return parsed;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new Error(
+        `Validation error: ${error.errors.map((e) => e.message).join(", ")}`
+      );
+    }
+    throw error; // rethrow unexpected errors
+  }
+}

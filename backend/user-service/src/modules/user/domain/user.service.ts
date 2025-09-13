@@ -27,4 +27,14 @@ export class UserService implements IUserService {
     // get the only user from the data array
     return data[0];
   };
+
+  updateUserInDatabase = async ({ id, name }: { id: string; name: string }) => {
+    const data = await this.userRepository.updateUserInDatabase({ id, name });
+    logger.info(
+      `UserService: updateUserInDatabase called with id: ${JSON.stringify(
+        id
+      )} and name: ${JSON.stringify(name)}`
+    );
+    return data;
+  };
 }

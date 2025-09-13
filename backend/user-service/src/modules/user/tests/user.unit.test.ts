@@ -11,6 +11,7 @@ describe("IUser Service", () => {
     userRepository = {
       postUserToDatabase: jest.fn(),
       getUserFromDataBase: jest.fn(),
+      updateUserInDatabase: jest.fn(),
     } as unknown as UserRepository;
     userService = new UserService(userRepository);
   });
@@ -57,6 +58,32 @@ describe("IUser Service", () => {
       })
     ).rejects.toThrow("Database error");
   });
+
+  it("should update user in database", async () => {
+    const user: IUser = {
+      id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      email: "a@gmail.com",
+      name: "Alice",
+    };
+    const userWithoutEmail = { id: user.id, name: user.name };
+
+    (userRepository.updateUserInDatabase as jest.Mock).mockResolvedValue(user);
+    const result = await userService.updateUserInDatabase(user);
+    expect(result).toEqual(user);
+    expect(userRepository.updateUserInDatabase).toHaveBeenCalledWith(
+      userWithoutEmail
+    );
+  });
+  it("should throw an error if updateUserInDatabase fails", async () => {
+    const error = new Error("Database error");
+    (userRepository.updateUserInDatabase as jest.Mock).mockRejectedValue(error);
+    await expect(
+      userService.updateUserInDatabase({
+        id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+        name: "Alice",
+      })
+    ).rejects.toThrow("Database error");
+  });
 });
 
 describe("IUser Controller", () => {
@@ -71,6 +98,7 @@ describe("IUser Controller", () => {
     userService = {
       postUserToDatabase: jest.fn(),
       getUserFromDataBase: jest.fn(),
+      updateUserInDatabase: jest.fn(),
     } as unknown as UserService;
     userController = new UserController(userService);
     request = {
@@ -135,6 +163,34 @@ describe("IUser Controller", () => {
     const error = new Error("Service error");
     (userService.getUserFromDataBase as jest.Mock).mockRejectedValue(error);
     await userController.getUser(
+      request as Request,
+      response as Response,
+      nextFunction
+    );
+    expect(nextFunction).toHaveBeenCalledWith(error);
+  });
+  it("should update user", async () => {
+    (userService.updateUserInDatabase as jest.Mock).mockResolvedValue({
+      message: "User updated in database",
+    });
+    await userController.updateUser(
+      request as Request,
+      response as Response,
+      nextFunction
+    );
+    expect(userService.updateUserInDatabase).toHaveBeenCalledWith({
+      id: "f47ac10b-58cc-4372-a567-0e02b2c3d479",
+      name: "Alice",
+    });
+    expect(response.status).toHaveBeenCalledWith(200);
+    expect(response.json).toHaveBeenCalledWith({
+      message: "User updated in database",
+    });
+  });
+  it("should handle errors in updateUser", async () => {
+    const error = new Error("Service error");
+    (userService.updateUserInDatabase as jest.Mock).mockRejectedValue(error);
+    await userController.updateUser(
       request as Request,
       response as Response,
       nextFunction
