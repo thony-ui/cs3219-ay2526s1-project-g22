@@ -7,7 +7,7 @@ import { createProxyMiddleware } from "http-proxy-middleware";
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 8000;
+const port = process.env.API_GATEWAY_PORT || 8000;
 
 const allowedOrigins = [
   process.env.ALLOWED_ORIGIN_DEVELOPMENT,
