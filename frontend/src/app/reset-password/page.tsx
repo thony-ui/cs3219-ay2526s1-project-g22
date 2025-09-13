@@ -5,7 +5,10 @@ import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
 import { createClient } from "../../lib/supabase/supabase-client";
-import { validatePasswordRequirements } from "@/utils/password-helper";
+import {
+  validatePassword,
+  validatePasswordRequirements,
+} from "@/utils/password-helper";
 import { showToast } from "@/utils/toast-helper";
 
 export default function ResetPasswordPage() {
@@ -30,6 +33,13 @@ export default function ResetPasswordPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("loading");
+    // validate password
+    const passwordError = validatePassword(password);
+    if (passwordError) {
+      showToast(passwordError, { success: false });
+      setStatus("error");
+      return;
+    }
     const { error } = await supabase.auth.updateUser({ password });
     if (error) {
       setStatus("error");
