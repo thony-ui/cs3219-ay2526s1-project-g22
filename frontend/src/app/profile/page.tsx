@@ -28,11 +28,13 @@ import { Header } from "../_components/Header";
 import Footer from "../_components/Footer";
 import { invalidateUser, useUpdateUser } from "@/mutations/use-update-user";
 import { showToast } from "@/utils/toast-helper";
+import { useRouter } from "next/navigation";
 import QuestionStats from "./_components/QuestionStats";
 import ProgressBar from "./_components/ProgressBar";
 import { uploadToStorage } from "./actions/upload-to-storage";
 
 export default function ProfilePage() {
+  const router = useRouter();
   const { user } = useUser();
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
@@ -233,6 +235,12 @@ export default function ProfilePage() {
                                 onChange={handleInputChange}
                                 placeholder="Enter your display name"
                               />
+                            </div>
+                            <div
+                              className="text-blue-500 hover:underline cursor-pointer"
+                              onClick={() => router.push("/reset-password")}
+                            >
+                              <p className="text-sm -mt-2">Change Password</p>
                             </div>
                             <div className="flex justify-end gap-2">
                               <Button
