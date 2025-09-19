@@ -3,7 +3,7 @@ name: Deploy to Vercel (Fork)
 on:
   push:
     branches: [master, "**/*"] # previews on all branches
-  pull_request:
+  pull_request_target:
     branches: [master] # previews for PRs within your fork
 
 jobs:
