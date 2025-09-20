@@ -2,10 +2,10 @@ name: Deploy to Vercel (Fork)
 
 on:
   push:
-    branches: [master, "**/*"] # Previews on all branches
+    branches: [master, "**"]
   pull_request_target:
-    branches: ["master"] # Trigger on all pull requests targeting master
-  workflow_dispatch: # Allow manual triggering
+    branches: [master]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -13,6 +13,7 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
+
     steps:
       - uses: actions/checkout@v4
 
@@ -21,76 +22,29 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel
-
-      - name: Debug Working Directory
-        run: |
-          echo "Current working directory: $(pwd)"
-          ls -la
-          ls -la frontend
-
-      - name: Install dependencies
+      - name: Install deps (app)
         working-directory: frontend
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_API_URL: "http://localhost:8000"
-          NEXT_PUBLIC_URL: "http://localhost:3000"
         run: npm ci
 
       - name: Vercel pull
-        working-directory: frontend
-        run: npx vercel pull --yes --environment=${{ github.event_name == 'push' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel pull --yes --environment=${{ github.event_name == 'push' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }} --cwd frontend
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-
-      - name: Fix .vercel/project.json
-        working-directory: frontend
-        run: |
-          jq '.settings.rootDirectory = null' .vercel/project.json > .vercel/project.json.tmp
-          mv .vercel/project.json.tmp .vercel/project.json
-
-      - name: Debug Directory After Vercel Pull
-        working-directory: frontend
-        run: |
-          echo "Current working directory: $(pwd)"
-          ls -la
-
-      - name: Debug .vercel/project.json
-        working-directory: frontend
-        run: cat .vercel/project.json
 
       - name: Build
-        working-directory: frontend
+        run: npx vercel build --token=${{ secrets.VERCEL_TOKEN }} --cwd frontend
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_API_URL: "http://localhost:8000"
-          NEXT_PUBLIC_URL: "http://localhost:3000"
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: npx vercel build --cwd . --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Debug Build Output
-        working-directory: frontend
-        run: ls -la .vercel/output
 
       - name: Deploy (Preview on PR/branch, Prod on push to master)
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_API_URL: "http://localhost:8000"
-          NEXT_PUBLIC_URL: "http://localhost:3000"
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
-            npx vercel deploy --prebuilt --output-directory=frontend/.vercel/output --prod --token=${{ secrets.VERCEL_TOKEN }}
+            npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} --cwd frontend
           else
-            npx vercel deploy --prebuilt --output-directory=frontend/.vercel/output --token=${{ secrets.VERCEL_TOKEN }}
+            npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} --cwd frontend
           fi
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
