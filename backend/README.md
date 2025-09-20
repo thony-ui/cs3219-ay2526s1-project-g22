@@ -74,13 +74,13 @@ Responsible for handling inputs, outputs, and contracts:
 
 #### 2. **Routes**
 
-- Defined in `/entry-point/routes/index.ts`.
+- Defined in `/entry-point/routes/app.ts`.
 - Contains all HTTP methods (GET, POST, PUT, DELETE, etc.).
 - Maps routes → controllers.
 
 #### 3. **Exports**
 
-- `index.ts` files serve as entry-points to re-export modules for clean imports.
+- `app.ts` files serve as entry-points to re-export modules for clean imports.
 
 ---
 
@@ -94,7 +94,7 @@ Responsible for handling inputs, outputs, and contracts:
 
 ## 📌 Main Entry Point
 
-- Each service has its main entry point at `src/index.ts`.
+- Each service has its main entry point at `src/app.ts`.
 - This file:
 
   - Bootstraps the Express server.
@@ -122,7 +122,7 @@ Responsible for handling inputs, outputs, and contracts:
    - Create `/order-service` folder.
    - Add `Dockerfile` in the root directory of the new service
    - Register it in `docker-compose.yml`.
-   - Update the api gateway (backend `index.ts`) with the new route refer to
+   - Update the api gateway (backend `app.ts`) with the new route refer to
      `const services: Record<string, string> = {
   "user-service": process.env.USER_SERVICE_URL || "http://localhost:6001",
   // add more here, e.g. "order-service": process.env.ORDER_SERVICE_URL

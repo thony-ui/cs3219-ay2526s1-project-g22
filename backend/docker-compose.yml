@@ -7,6 +7,9 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    networks:
+      - shared-network
+
   api-gateway:
     build:
       context: .
@@ -30,6 +33,20 @@ services:
       - "6001:6001"
     volumes:
       - ./user-service/src:/app/src
+    env_file:
+      - .env
+    networks:
+      - shared-network
+
+  matching-service:
+    build:
+      context: ./matching-service
+      dockerfile: ./Dockerfile
+      target: development
+    ports:
+      - "6002:6002"
+    volumes:
+      - ./matching-service/src:/app/src
     env_file:
       - .env
     networks:
