@@ -90,7 +90,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
-            npx vercel deploy --prebuilt --output-directory=.vercel/output --prod --token=${{ secrets.VERCEL_TOKEN }}
+            npx vercel deploy --prebuilt --output-directory=frontend/.vercel/output --prod --token=${{ secrets.VERCEL_TOKEN }}
           else
-            npx vercel deploy --prebuilt --output-directory=.vercel/output --token=${{ secrets.VERCEL_TOKEN }}
+            npx vercel deploy --prebuilt --output-directory=frontend/.vercel/output --token=${{ secrets.VERCEL_TOKEN }}
           fi
