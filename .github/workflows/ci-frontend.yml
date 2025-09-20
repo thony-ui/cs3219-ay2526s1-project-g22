@@ -74,20 +74,3 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx vercel build --cwd . --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy (Preview on PR/branch, Prod on push to master)
-        working-directory: frontend
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_API_URL: "http://localhost:8000"
-          NEXT_PUBLIC_URL: "http://localhost:3000"
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-        run: |
-          if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
-            npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
-          else
-            npx vercel deploy --token=${{ secrets.VERCEL_TOKEN }}
-          fi
