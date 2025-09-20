@@ -75,6 +75,12 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx vercel build --cwd . --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Fix .vercel/project.json after build step
+        working-directory: frontend
+        run: |
+          jq '.settings.rootDirectory = null' .vercel/project.json > .vercel/project.json.tmp
+          mv .vercel/project.json.tmp .vercel/project.json
+
       - name: Deploy (Preview on PR/branch, Prod on push to master)
         working-directory: frontend
         env:
