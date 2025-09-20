@@ -1,0 +1,70 @@
+import { Request, Response } from 'express';
+import { matchingService } from './matching.service';
+import { logger } from '../utils/logger';
+
+class MatchingController {
+    async getMatches(req: Request, res: Response) {
+        const userId = req.params.userId; // Or get from auth token in a real app
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        }
+
+        try {
+            const matches = await matchingService.findFuzzyMatches(userId);
+            res.status(200).json(matches);
+        } catch (error) {
+            logger.error(`Error in getMatches for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    async getUserPreferences(req: Request, res: Response) {
+        const userId = req.params.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        }
+
+        try {
+            const preferences = await matchingService.getUserPreference(userId);
+            if (preferences) {
+                res.status(200).json(preferences);
+            } else {
+                res.status(404).json({ message: 'User preferences not found.' });
+            }
+        } catch (error) {
+            logger.error(`Error in getUserPreferences for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    // Example: Endpoint to set/update user preferences
+    async setUserPreferences(req: Request, res: Response) {
+        type Difficulty = "easy" | "medium" | "hard";
+        const userId = req.params.userId;
+        const { topics, difficulty } = req.body as { topics: string[]; difficulty: Difficulty };
+
+        if (!userId || !topics || !Array.isArray(topics) || !difficulty) {
+            return res.status(400).json({ message: 'User ID, topics (array), and difficulty are required.' });
+        }
+
+        const validDifficulties = ['easy', 'medium', 'hard'];
+        if (!validDifficulties.includes(difficulty)) {
+            return res.status(400).json({ message: 'Invalid difficulty. Must be easy, medium, or hard.' });
+        }
+
+        try {
+            const updatedPreferences = await matchingService.updateUserPreferences(
+                userId,
+                { user_id: userId, topics, difficulty }
+            );
+            res.status(200).json(updatedPreferences);
+        } catch (error) {
+            logger.error(`Error in setUserPreferences for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+}
+
+export const matchingController = new MatchingController();
