@@ -42,6 +42,12 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
+      - name: Fix .vercel/project.json
+        working-directory: frontend
+        run: |
+          jq '.settings.rootDirectory = null' .vercel/project.json > .vercel/project.json.tmp
+          mv .vercel/project.json.tmp .vercel/project.json
+
       - name: Debug Directory After Vercel Pull
         working-directory: frontend
         run: |
