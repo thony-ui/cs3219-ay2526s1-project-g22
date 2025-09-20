@@ -75,7 +75,12 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: npx vercel build --cwd . --token=${{ secrets.VERCEL_TOKEN }}
 
+      - name: Debug Build Output
+        working-directory: frontend
+        run: ls -la .vercel/output
+
       - name: Deploy (Preview on PR/branch, Prod on push to master)
+        working-directory: frontend
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
