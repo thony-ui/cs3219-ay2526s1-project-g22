@@ -30,12 +30,6 @@ jobs:
           ls -la
           ls -la frontend
 
-      - name: Debug Secrets
-        run: |
-          echo "VERCEL_ORG_ID=${{ secrets.VERCEL_ORG_ID }}"
-          echo "VERCEL_PROJECT_ID=${{ secrets.VERCEL_PROJECT_ID }}"
-          echo "VERCEL_TOKEN is set"
-
       - name: Install dependencies
         working-directory: frontend
         run: npm ci
@@ -48,9 +42,19 @@ jobs:
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
 
+      - name: Debug Directory After Vercel Pull
+        working-directory: frontend
+        run: |
+          echo "Current working directory: $(pwd)"
+          ls -la
+
+      - name: Debug .vercel/project.json
+        working-directory: frontend
+        run: cat .vercel/project.json
+
       - name: Build
         working-directory: frontend
-        run: npx vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        run: npx vercel build --cwd . --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
