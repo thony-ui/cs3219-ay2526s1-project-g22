@@ -40,11 +40,28 @@ jobs:
         run: npm ci
 
       - name: Vercel pull
+        working-directory: frontend
         run: npx vercel pull --yes --environment=${{ github.event_name == 'push' && 'production' || 'preview' }} --token=${{ secrets.VERCEL_TOKEN }}
         env:
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+
+      - name: Fix .vercel/project.json
+        working-directory: frontend
+        run: |
+          jq '.settings.rootDirectory = null' .vercel/project.json > .vercel/project.json.tmp
+          mv .vercel/project.json.tmp .vercel/project.json
+
+      - name: Debug Directory After Vercel Pull
+        working-directory: frontend
+        run: |
+          echo "Current working directory: $(pwd)"
+          ls -la
+
+      - name: Debug .vercel/project.json
+        working-directory: frontend
+        run: cat .vercel/project.json
 
       - name: Build
         working-directory: frontend
@@ -70,7 +87,7 @@ jobs:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         run: |
           if [[ "${{ github.event_name }}" == "push" && "${{ github.ref }}" == "refs/heads/master" ]]; then
-            npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} 
+            npx vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }}
           else
-            npx vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} 
+            npx vercel deploy --token=${{ secrets.VERCEL_TOKEN }}
           fi
