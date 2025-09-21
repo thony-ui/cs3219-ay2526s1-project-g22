@@ -24,21 +24,15 @@ const config = {
     },
     supabase: {
         url: process.env.SUPABASE_URL || '',
-        anonKey: process.env.SUPABASE_SERVICE_ROLE_KEY || '', // Using SERVICE_ROLE_KEY here as per your original code
+        servicekey: process.env.SUPABASE_SERVICE_ROLE_KEY || '', // Using SERVICE_ROLE_KEY here as per your original code
     },
 };
 
 if (!config.supabase.url) { // Simplified check based on actual error
     console.error('CRITICAL ERROR: Supabase URL is still missing in config. Please check .env file.');
 }
-if (!config.supabase.anonKey) {
-    console.warn('WARNING: Supabase Anon Key is missing in config. Ensure it is set if you need it.');
-} else {
-    // You'll still see this warning if it's the anon key, but it means the key was loaded.
-    if (config.supabase.anonKey.includes('"role":"anon"')) {
-        console.warn('WARNING: SUPABASE_SERVICE_ROLE_KEY appears to be your public "anon" key. If you require service_role privileges, please update this.');
-    }
+if (!config.supabase.servicekey) {
+    console.warn('WARNING: Supabase service Key is missing in config. Ensure it is set if you need it.');
 }
-
 
 export default config;

@@ -65,6 +65,54 @@ class MatchingController {
             res.status(500).json({ message: 'Internal server error.' });
         }
     }
+
+    async addToQueue(req: Request, res: Response) {
+        const userId = req.params.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        }
+
+        try {
+            await matchingService.addToQueue(userId);
+            res.status(200).json({ message: 'User added to matching queue.' });
+        } catch (error) {
+            logger.error(`Error in addUserToQueue for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    async removeFromQueue(req: Request, res: Response) {
+        const userId = req.params.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        }
+
+        try {
+            await matchingService.removeFromQueue(userId);
+            res.status(200).json({ message: 'User removed from matching queue.' });
+        } catch (error) {
+            logger.error(`Error in removeUserFromQueue for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    async clearMatches(req: Request, res: Response) {
+        const matchId = req.params.matchId;
+
+        if (!matchId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        }
+
+        try {
+            await matchingService.clearMatches(matchId);
+            res.status(200).json({ message: 'Matches cleared for user.' });
+        } catch (error) {
+            logger.error(`Error in clearMatches for match ${matchId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
 }
 
 export const matchingController = new MatchingController();

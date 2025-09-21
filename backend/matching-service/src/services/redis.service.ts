@@ -1,11 +1,14 @@
 import Redis from 'ioredis';
 import config from '../config';
-import { logger } from '../utils/logger'; // We'll create this later
+import { logger } from '../utils/logger';
+import {supabaseService} from "./supabase.service"; // We'll create this later
 
 class RedisService {
     public client: Redis;
     private readonly CACHE_TTL_SECONDS = 3600; // Cache for 1 hour
     private readonly MATCHES_KEY_PREFIX = 'matches';
+    private readonly QUEUE_KEY = 'match_queue';
+    private readonly TOPIC_KEY_PREFIX = 'topic';
 
     constructor() {
         this.client = new Redis({
@@ -60,21 +63,60 @@ class RedisService {
     }
 
     // Batch fetch set members for multiple keys using pipeline
+    // Returns an array of arrays, each containing the members of the corresponding set
+    // If a key does not exist or an error occurs, returns an empty array for that key
     async fetchMembers(keys: string[]): Promise<string[][]> {
         try {
             const pipeline = this.client.pipeline();
-            keys.forEach(key => pipeline.smembers(key));
+            keys.forEach((key) => pipeline.smembers(`${this.TOPIC_KEY_PREFIX}:${key}`));
+
+            // pipeline.exec() returns Promise<Array<[Error | null, unknown]>>
             const results = await pipeline.exec();
+
             if (!results) {
-                logger.warn('Pipeline execution returned no results. Defaulting to empty arrays.');
+                logger.warn(
+                    'Pipeline execution returned no results. Defaulting to empty arrays.',
+                );
                 return keys.map(() => []);
             }
-            return results.map(([err, members]) => {
+
+            // Correctly type the callback parameters based on pipeline.exec() return
+            return results.map((resultTuple, index) => {
+                const [err, membersUntyped] = resultTuple;
+                const members = membersUntyped as string[] | null | undefined;
+
                 if (err) {
                     logger.error(`Error fetching members for key:`, err);
                     return [];
                 }
-                return members as string[];
+
+                // Check if members is null/undefined or an empty array
+                if (!members || members.length === 0) {
+                    logger.info(
+                        'No members found for one of the keys. Trying to fetch from Supabase as fallback.',
+                    );
+                    // Fallback to Supabase
+                    supabaseService.fetchMembers([keys[index]]).then((fetched) => {
+                        if (fetched && fetched.length > 0) {
+                            // Cache the fetched members in Redis
+                            fetched[0].forEach((userId) => {
+                                this.client.sadd(`${this.TOPIC_KEY_PREFIX}:${keys[index]}`, userId);
+                            });
+                            this.client.expire(`${this.TOPIC_KEY_PREFIX}:${keys[index]}`, this.CACHE_TTL_SECONDS);
+                            logger.info(
+                                `Fetched and cached ${fetched[0].length} members for key ${keys[index]} from Supabase.`,
+                            );
+
+                            // Return the fetched members
+                            return fetched[0];
+                        }
+                    }
+                    ).catch((error) => {
+                        logger.error(`Error fetching from Supabase for key ${keys[index]}:`, error);
+                    });
+                    return [];
+                }
+                return members;
             });
         } catch (error) {
             logger.error(`Error executing pipeline for keys ${keys}:`, error);
@@ -178,6 +220,34 @@ class RedisService {
         }
     }
 
+    async saveFetchedMembersToCache(topicKeys: string[], queryResult: string[][]) {
+        const pipeline = this.client.pipeline();
+        topicKeys.forEach((key, index) => {
+            if (queryResult[index] && queryResult[index].length > 0) {
+                queryResult[index].forEach(userId => {
+                    pipeline.sadd(key, userId);
+                });
+                pipeline.expire(key, this.CACHE_TTL_SECONDS);
+            }
+        });
+        pipeline.exec().catch(error => {
+            logger.error('Error saving fetched members to cache:', error);
+        });
+    }
+
+    async addUserToQueue(userId: string) {
+        await this.set(this.QUEUE_KEY, userId, this.CACHE_TTL_SECONDS);
+        logger.info(`Added user ${userId} to match queue`);
+    }
+
+    async removeUserFromQueue(userId: string) {
+        await this.del(this.QUEUE_KEY);
+        logger.info(`Removed user ${userId} from match queue`);
+    }
+
+    async removeUserMatchesFromCache(matchId: string) {
+        await this.removeMatchFromCache(matchId);
+    }
 }
 
 export const redisService = new RedisService();

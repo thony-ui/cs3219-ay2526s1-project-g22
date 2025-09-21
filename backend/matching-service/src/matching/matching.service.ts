@@ -6,9 +6,10 @@ import { v4 as uuidv4 } from 'uuid';
 
 export class MatchingService {
     private readonly CACHE_KEY_PREFIX = 'user_match_pref:';
-    private readonly TOPIC_KEY_PREFIX = 'topic:';
 
     // --- Get User Preferences with Caching ---
+    // First checks Redis cache, if not found, fetches from Supabase and caches it
+    // Returns null if user preferences are not found
     async getUserPreference(userId: string): Promise<UserPreference | null> {
         const cacheKey = `${this.CACHE_KEY_PREFIX}${userId}`;
         let preferences: UserPreference | null = await redisService.get(cacheKey);
@@ -28,6 +29,7 @@ export class MatchingService {
     }
 
     // --- Helper Function to Get a User's Topics ---
+    // Returns a Set of topics for the user
     async getUserTopics(userId: string) {
         let preferences = await this.getUserPreference(userId);
         if (!preferences) {
@@ -42,6 +44,52 @@ export class MatchingService {
 
         // convert to Set to ensure uniqueness
         return new Set(preferences.topics);
+    }
+
+    // --- Fetch Members for Multiple topics ---
+    // This function fetches user_ids for multiple topics from Redis.
+    // If not found in Redis, it falls back to Supabase and caches the results.
+    // Returns an array of arrays, where each inner array contains user_ids for the corresponding topic.
+    // If a topic has no members or an error occurs, returns an empty array for that topic.
+    async fetchMembers(user_ids: string[]): Promise<string[][]> {
+        let queryResult = await redisService.fetchMembers(user_ids);
+
+        if (!queryResult) {
+            logger.error('Failed to fetch members for topic keys in cache, trying to find in supabase:', user_ids);
+            queryResult = await supabaseService.fetchMembers(user_ids);
+            if (!queryResult) {
+                logger.error('Failed to fetch members for topic keys in supabase:', user_ids);
+                return user_ids.map(() => []); // Return empty arrays on error
+            }
+
+            // Cache the results in Redis for future use
+            await redisService.saveFetchedMembersToCache(user_ids, queryResult);
+        }
+
+        return queryResult
+    }
+
+    // --- Queue Management ---
+    // These functions manage adding/removing users from the matchmaking queue in Supabase.
+    // The function only fetches from Supabase, no caching is done here.
+    // This is because the queue state is dynamic and should always be current, and Supabase should be the only source
+    // of truth.
+    async addToQueue(userId: string) {
+        try {
+            await supabaseService.addUserToQueue(userId);
+        } catch (error) {
+            logger.error(`Failed to add user ${userId} to Supabase queue:`, error);
+            throw error; // rethrow the error after logging
+        }
+    }
+
+    async removeFromQueue(userId: string) {
+        try {
+            await supabaseService.removeUserFromQueue(userId);
+        } catch (error) {
+            logger.error(`Failed to remove user ${userId} from Supabase queue:`, error);
+            throw error; // rethrow the error after logging
+        }
     }
 
     // --- Main Fuzzy Matchmaking Function ---
@@ -65,28 +113,34 @@ export class MatchingService {
             `(${fuzzyPercentage * 100}%).`
         );
 
-        // 1. Get all Redis keys for the source user's topics
-        const topicKeys = Array.from(sourceUserTopics).map(
-            (topic) => `${this.TOPIC_KEY_PREFIX}${topic}`
-        );
+        // Fetch all users from queue
+        const queueMembers: string[] = await this.getQueueMembers();
+        if (!queueMembers || queueMembers.length === 0) {
+            console.log('No users in the matching queue.');
+            return [];
+        }
 
-        // 2. Fetch all members from these topic sets concurrently
-        // We use `pipeline` or `multi` for efficiency to send multiple commands in one round trip.
-        const results = await redisService.fetchMembers(topicKeys)
+        if (queueMembers.find(id => id === sourceUserId) == undefined) {
+            console.log(`User ${sourceUserId} is not in the matching queue.`);
+            return [];
+        }
+
+        // Fetch members for each topic the source user has
+        const results = await this.fetchMembers(Array.from(sourceUserTopics));
 
         // 'results' will be an array like [['userA', 'userB'], ['userB', 'userC']]
         const userCounts = new Map(); // Map<userId, count>
 
         for (const result of results) {
             for (const userId of result) {
-                if (userId !== String(sourceUserId)) {
-                    // Don't count the source user themselves
+                if (userId !== String(sourceUserId) && queueMembers.includes(userId)) {
+                    // Don't count the source user themselves and only count users in the queue
                     userCounts.set(userId, (userCounts.get(userId) || 0) + 1);
                 }
             }
         }
 
-        // 3. Filter candidates based on required match count
+        // Filter candidates based on required match count
         const matches = [];
         for (const [userId, count] of userCounts.entries()) {
             if (count >= requiredMatches) {
@@ -109,7 +163,7 @@ export class MatchingService {
         // sort matches by number of shared topics, descending
         matches.sort((a, b) => (userCounts.get(b) || 0) - (userCounts.get(a) || 0));
 
-        //4. Filter matches by difficulty level, returns the first match found with the same difficulty
+        // Filter matches by difficulty level, returns the first match found with the same difficulty
         let match:string = '';
         for (const matchTemp of matches) {
             const isDifficultyMatch = await this.checkDifficultyMatch(sourceUserId, matchTemp);
@@ -132,6 +186,19 @@ export class MatchingService {
                 console.error('Failed to generate match ID');
                 return null;
             }
+            // update Supabase with the match ID
+            try {
+                const res = await supabaseService.handleNewMatch(sourceUserId, match, matchId);
+                if (!res.success) {
+                    console.error('Failed to handle new match in Supabase:', res.message);
+                    return null;
+                }
+                console.log('Successfully handled new match in Supabase:', res.message);
+            } catch (error) {
+                console.error('Failed to handle new match in Supabase:', error);
+                return null;
+            }
+            // do not cache users when Supabase update fails
             await redisService.removeMatchedUsersFromCache(sourceUserId, match);
             await redisService.addMatchToCache(sourceUserId, match, matchId);
             return match
@@ -157,13 +224,40 @@ export class MatchingService {
 
     // --- Update User Preferences and Invalidate Cache ---
     async updateUserPreferences(userId: string, newPreferences: UserPreference): Promise<UserPreference | null> {
-        // In a real application, you'd update Supabase here first, then update/delete cache
-        // For this example, let's just update cache for simplicity, assuming Supabase is updated elsewhere.
+        // Update in Supabase
+        try {
+            await supabaseService.updateUserPreferences(newPreferences);
+            logger.info(`Updated preferences in Supabase for user: ${userId}`);
+        } catch (error) {
+            // stop update to redis if supabase update fails
+            logger.error(`Failed to update user preferences in Supabase for user: ${userId}, Redis cache not updated: `, error);
+            return null;
+        }
+
+        // Update in Redis Cache
         const cacheKey = `${this.CACHE_KEY_PREFIX}${userId}`;
         await redisService.set(cacheKey, newPreferences);
         await redisService.setTopics(userId, newPreferences.topics);
         logger.info(`Updated preferences and invalidated cache for user: ${userId}`);
         return newPreferences; // Return the updated preferences
+    }
+
+    // retrieve all members currently in the queue from supabase
+    // returns an array of user IDs
+    private async getQueueMembers() {
+        return await supabaseService.getQueueMembers();
+    }
+
+    // --- Clear Matches for a Given Match ID ---
+    async clearMatches(matchId: string) {
+        try {
+            await supabaseService.clearMatches(matchId);
+            await redisService.removeUserMatchesFromCache(matchId);
+            logger.info(`Cleared matches for match: ${matchId}`);
+        } catch (error) {
+            logger.error(`Failed to clear matches for match: ${matchId}`, error);
+            throw error; // rethrow the error after logging
+        }
     }
 }
 
