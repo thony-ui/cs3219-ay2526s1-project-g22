@@ -218,6 +218,7 @@ export default function CodeEditor({ sessionId, userId }: Props) {
           {isBlocked ? "Read-only" : "Editable"}
         </div>
       </div>
+
       <div className="border rounded-md p-2">
         <CodeMirror
           value={code}
