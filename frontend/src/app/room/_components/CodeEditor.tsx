@@ -20,16 +20,20 @@ import {
   SyncAckPayload,
   CodeUpdatePayload,
 } from "../types/realtime";
+import { useUser } from "@/contexts/user-context";
+import EndSessionButton from "./EndSessionBtn";
 
 const SESSION_API_BASE_URL = process.env
   .NEXT_PUBLIC_SESSION_API_BASE_URL as string;
 
 type Props = {
   sessionId: string;
-  userId: string;
 };
 
-export default function CodeEditor({ sessionId, userId }: Props) {
+export default function CodeEditor({ sessionId }: Props) {
+  const { user } = useUser();
+  const userId = user?.id;
+
   const [code, setCode] = useState<string>("// Loading session...\n");
   const [isBlocked, setIsBlocked] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<string>("Initializing...");
@@ -210,12 +214,22 @@ export default function CodeEditor({ sessionId, userId }: Props) {
 
   return (
     <>
-      <div className="mb-2 text-sm text-gray-400 space justify-between flex">
+      <div className="flex justify-between items-center mb-2 text-sm text-gray-400">
         <div>
-          Room: {sessionId} • User: {userId}
+          Room: <span className="font-medium text-gray-600">{sessionId}</span> •
+          User: <span className="font-medium text-gray-600">{userId}</span>
         </div>
-        <div className={isBlocked ? "text-yellow-600" : "text-green-600"}>
-          {isBlocked ? "Read-only" : "Editable"}
+        <div className="flex items-center gap-3">
+          <span
+            className={
+              isBlocked
+                ? "text-yellow-600 font-medium"
+                : "text-green-600 font-medium"
+            }
+          >
+            {isBlocked ? "Read-only" : "Editable"}
+          </span>
+          <EndSessionButton sessionId={sessionId} />
         </div>
       </div>
 

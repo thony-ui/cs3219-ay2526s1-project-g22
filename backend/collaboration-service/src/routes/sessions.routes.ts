@@ -5,9 +5,10 @@ import {
   updateSessionSnapshot,
   completeSession,
 } from "../services/sessions.service";
+import { authenticateUser } from "./authorization";
 
 type CreateSessionBody = {
-  interviewer_id: string;
+  interviewer_id?: string;
   interviewee_id: string;
   initial_code?: string;
 };
@@ -21,30 +22,27 @@ type SessionParams = {
 };
 const router = Router();
 
-// Middleware stub: replace with actual JWT validation (talks to User Service)
-function authMiddleware(req: Request, res: Response, next: any) {
-  // For MVP, simulate user id from header (e.g., "x-user-id")
-  const userId = req.header("x-user-id");
-  if (!userId) return res.status(401).json({ error: "Unauthorized" });
-  req.userId = userId;
-  next();
-}
-
 // create a new session
 router.post(
   "/",
-  authMiddleware,
+  authenticateUser,
   async (req: Request<{}, {}, CreateSessionBody>, res: Response) => {
     try {
-      const currentUser = req.userId;
+      const currentUser = req.user.id;
       if (!currentUser) {
-        return res.status(401).json({ error: "Unauthorized" });
+        return res
+          .status(401)
+          .json({ error: "Unauthorized: Log in to start a session" });
       }
 
-      const { interviewer_id, interviewee_id, initial_code = "" } = req.body;
-      if (!interviewer_id || !interviewee_id) {
-        return res.status(400).json({ error: "Missing Participants" });
-      }
+      const {
+        interviewer_id = "testinterviewr",
+        interviewee_id,
+        initial_code = "",
+      } = req.body;
+      // if (!interviewer_id || !interviewee_id) {
+      //   return res.status(400).json({ error: "Missing Participants" });
+      // }
 
       const session = await createSession(
         interviewer_id,

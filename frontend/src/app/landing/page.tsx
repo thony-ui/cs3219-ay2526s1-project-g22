@@ -19,6 +19,7 @@ import { useState } from "react";
 import { SignInForm } from "./_components/signin-form";
 import { SignUpForm } from "./_components/signup-form";
 import Footer from "../_components/Footer";
+import { SoloPracticeButton } from "../_components/SoloPracticeButton";
 
 export default function LandingPage() {
   const [displaySignUp, setDisplaySignUp] = useState(false);
@@ -37,6 +38,11 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex items-center space-x-4">
+              <SoloPracticeButton
+                variant="ghost"
+                className="text-blue-200 hover:text-white hover:bg-blue-800/30"
+                onRequireLogin={() => setDisplayLogin(true)}
+              />
               <Button
                 variant="ghost"
                 className="text-blue-200 hover:text-white hover:bg-blue-800/30"

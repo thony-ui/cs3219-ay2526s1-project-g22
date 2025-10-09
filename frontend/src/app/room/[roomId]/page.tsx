@@ -1,5 +1,5 @@
-import { cookies } from "next/headers";
 import CodeEditor from "../_components/CodeEditor";
+import EndSessionButton from "../_components/EndSessionBtn";
 
 export default async function RoomPage({
   params,
@@ -7,10 +7,6 @@ export default async function RoomPage({
   params: Promise<{ roomId: string }>;
 }) {
   const { roomId } = await params;
-
-  // TODO temp
-  const cookieStore = cookies();
-  const userId = (await cookieStore).get("userId")?.value ?? "unknown_user";
 
   return (
     <div className="flex h-screen">
@@ -25,7 +21,7 @@ export default async function RoomPage({
 
       {/* Code Editor on the right */}
       <div className="w-3/4 h-full p-4 bg-gray-50">
-        <CodeEditor sessionId={roomId} userId={userId} />
+        <CodeEditor sessionId={roomId} />
       </div>
     </div>
   );
