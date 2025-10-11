@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@codemirror/lang-javascript": "^6.2.4",
     "@heroicons/react": "^2.2.0",
     "@hookform/resolvers": "^5.2.1",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -22,11 +23,13 @@
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.53.0",
     "@tanstack/react-query": "^5.84.1",
+    "@uiw/react-codemirror": "^4.25.1",
     "@xyflow/react": "^12.8.4",
     "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.536.0",
     "moment": "^2.30.1",
     "next": "^15.4.5",
@@ -41,6 +44,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/lodash": "^4.17.20",
     "@types/node": "^20.19.9",
     "@types/react": "^19",
     "@types/react-dom": "^19",

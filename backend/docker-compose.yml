@@ -34,6 +34,19 @@ services:
       - .env
     networks:
       - shared-network
+  collaboration-service:
+    build:
+      context: ./collaboration-service
+      dockerfile: ./Dockerfile
+      target: development
+    ports:
+      - "6004:6004"
+    volumes:
+      - ./collaboration-service/src:/app/src
+    env_file:
+      - .env
+    networks:
+      - shared-network
 
 networks:
   shared-network:
