@@ -66,14 +66,9 @@ export default function CodeEditor({ sessionId }: Props) {
           typeof session.current_code === "string" ? session.current_code : "";
         setCode(initial);
         await joinRealtimeChannel(initial);
-      } catch (e) {
-        setStatusMsg(
-          `Error: ${
-            typeof e === "object" && e !== null && "message" in e
-              ? (e as { message?: string }).message
-              : String(e)
-          }`
-        );
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        setStatusMsg(`Error: ${e.message || e}`);
       }
     }
     initSession();
