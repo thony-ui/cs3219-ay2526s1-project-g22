@@ -26,6 +26,8 @@ app.use(
 // Known microservices
 const services: Record<string, string> = {
   "user-service": process.env.USER_SERVICE_URL || "http://localhost:6001",
+  "collaboration-service":
+    process.env.COLLAB_SERVICE_URL || "http://localhost:6004",
   // add more here, e.g. "order-service": process.env.ORDER_SERVICE_URL
 };
 
