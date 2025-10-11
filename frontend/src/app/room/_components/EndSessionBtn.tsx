@@ -3,11 +3,12 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import api from "@/lib/axios";
+import axiosInstance from "@/lib/axios";
 
 interface EndSessionButtonProps extends ButtonProps {
   sessionId: string;
 }
+const baseApiUrl = "/api/collaboration-service";
 
 export default function EndSessionButton({
   sessionId,
@@ -24,9 +25,7 @@ export default function EndSessionButton({
       setIsLoading(true);
 
       // ✅ Inform backend to mark session as ended
-      await api.patch(
-        `/api/collaboration-service/sessions/${sessionId}/complete`
-      );
+      await axiosInstance.patch(`${baseApiUrl}/sessions/${sessionId}/complete`);
 
       router.push("/"); // todo move to sesion history
     } catch (err) {
