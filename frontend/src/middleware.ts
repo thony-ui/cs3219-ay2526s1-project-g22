@@ -23,11 +23,15 @@ export async function middleware(request: NextRequest) {
     error,
   } = await supabase.auth.getUser();
 
-  const protectedRoutes = ["/"];
+  const protectedRoutes = ["/", "/room"];
+  const protectedPatterns = [/^\/room\/[^\/]+$/]; // matches /room/:id
+
   const publicRoutes = ["/landing", "/forgot-password"];
 
   const path = request.nextUrl.pathname;
-  const isProtectedRoute = protectedRoutes.includes(path);
+  const isProtectedRoute =
+    protectedRoutes.includes(path) ||
+    protectedPatterns.some((pattern) => pattern.test(path));
   const isPublicRoute = publicRoutes.includes(path);
 
   // Redirect to /landing if the user is not authenticated and trying to access a protected route

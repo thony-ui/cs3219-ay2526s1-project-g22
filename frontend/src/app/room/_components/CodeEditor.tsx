@@ -22,10 +22,9 @@ import {
 } from "../types/realtime";
 import { useUser } from "@/contexts/user-context";
 import EndSessionButton from "./EndSessionBtn";
+import axiosInstance from "@/lib/axios";
 
-const SESSION_API_BASE_URL = process.env
-  .NEXT_PUBLIC_SESSION_API_BASE_URL as string;
-
+const baseApiUrl = "/api/collaboration-service";
 type Props = {
   sessionId: string;
 };
@@ -55,17 +54,19 @@ export default function CodeEditor({ sessionId }: Props) {
     let aborted = false;
     async function initSession() {
       try {
-        const resp = await fetch(
-          `${SESSION_API_BASE_URL}/sessions/${sessionId}`
+        const resp = await axiosInstance.get(
+          `${baseApiUrl}/sessions/${sessionId}`
         );
-        if (!resp.ok) throw new Error(`Session fetch failed (${resp.status})`);
-        const session = await resp.json();
+        if (resp.status !== 200)
+          throw new Error(`Session fetch failed (${resp.status})`);
+        const session = resp.data;
         if (aborted) return;
 
         const initial =
           typeof session.current_code === "string" ? session.current_code : "";
         setCode(initial);
         await joinRealtimeChannel(initial);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         setStatusMsg(`Error: ${e.message || e}`);
       }
@@ -150,13 +151,13 @@ export default function CodeEditor({ sessionId }: Props) {
       if (snapshotIntervalRef.current)
         clearInterval(snapshotIntervalRef.current);
       snapshotIntervalRef.current = setInterval(() => {
-        persistSnapshot(SESSION_API_BASE_URL, sessionId, codeRef.current).catch(
+        persistSnapshot(baseApiUrl, sessionId, codeRef.current).catch(
           () => void 0
         );
       }, 5000);
       return sub;
     },
-    [supabase, sessionId, userId, SESSION_API_BASE_URL]
+    [supabase, sessionId, userId, baseApiUrl]
   );
 
   // Cleanup
@@ -258,11 +259,13 @@ async function persistSnapshot(
   sessionId: string,
   code: string
 ) {
-  await fetch(`${baseUrl}/sessions/${sessionId}/snapshot`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
-  });
+  await axiosInstance.patch(
+    `${baseUrl}/sessions/${sessionId}/snapshot`,
+    { code },
+    {
+      headers: { "Content-Type": "application/json" },
+    }
+  );
 }
 
 function nowTs() {
