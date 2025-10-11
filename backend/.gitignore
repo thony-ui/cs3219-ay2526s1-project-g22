@@ -6,3 +6,8 @@ dump.rdb
 /dist/
 /logs/
 /.cache/
+
+# Test files
+test-endpoints.js
+test-question-retrieval.js
+test-api.sh
