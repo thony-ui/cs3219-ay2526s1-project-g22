@@ -19,6 +19,7 @@ import {
   SyncResponsePayload,
   SyncAckPayload,
   CodeUpdatePayload,
+  AnyPayloadWithLang,
 } from "../types/realtime";
 import { useUser } from "@/contexts/user-context";
 import EndSessionButton from "./EndSessionBtn";
@@ -38,6 +39,10 @@ export default function CodeEditor({ sessionId }: Props) {
   const [isBlocked, setIsBlocked] = useState<boolean>(false);
   const [statusMsg, setStatusMsg] = useState<string>("Initializing...");
   const [connectedUsers, setConnectedUsers] = useState<string[]>([]);
+  const [selectedLanguage, setSelectedLanguage] = useState<string | null>(
+    null
+  );
+  const [langExtension, setLangExtension] = useState<any>(null);
 
   const supabase = useMemo(() => createClient(), []);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -49,6 +54,79 @@ export default function CodeEditor({ sessionId }: Props) {
   useEffect(() => {
     codeRef.current = code;
   }, [code]);
+
+  // Accepted languages list (ID, label). Add/remove as needed.
+  const SUPPORTED_LANGUAGES: { id: string; label: string }[] = [
+    { id: "javascript", label: "JavaScript / TypeScript" },
+    { id: "python", label: "Python" },
+    { id: "java", label: "Java" },
+    { id: "rust", label: "Rust" },
+    { id: "cpp", label: "C / C++" },
+    { id: "plaintext", label: "Plain Text" },
+  ];
+
+  // Load language extension dynamically when selectedLanguage changes.
+  useEffect(() => {
+    let cancelled = false;
+    async function loadLang() {
+      if (!selectedLanguage) {
+        setLangExtension(null);
+        return;
+      }
+      try {
+        switch (selectedLanguage) {
+          case "javascript":
+            setLangExtension(javascript({ jsx: true, typescript: true }));
+            break;
+          case "python": {
+            const mod = await import(
+              /* webpackChunkName: "cm-lang-python" */ "@codemirror/lang-python"
+            );
+            if (!cancelled) setLangExtension(mod.python());
+            break;
+          }
+          case "java": {
+            const mod = await import(
+              /* webpackChunkName: "cm-lang-java" */ "@codemirror/lang-java"
+            );
+            if (!cancelled) setLangExtension(mod.java());
+            break;
+          }
+          case "rust": {
+            const mod = await import(
+              /* webpackChunkName: "cm-lang-rust" */ "@codemirror/lang-rust"
+            );
+            if (!cancelled) setLangExtension(mod.rust());
+            break;
+          }
+          case "cpp": {
+            // try C/C++ language package, fallback to null if unavailable
+            try {
+              const mod = await import(
+                /* webpackChunkName: "cm-lang-cpp" */ "@codemirror/lang-cpp"
+              );
+              if (!cancelled) setLangExtension(mod.cpp());
+            } catch (e) {
+              setLangExtension(null);
+            }
+            break;
+          }
+          case "plaintext":
+          default:
+            setLangExtension(null);
+            break;
+        }
+      } catch (e) {
+        // If dynamic import fails, fallback to no language extension
+        console.warn("Failed to load language extension", selectedLanguage, e);
+        if (!cancelled) setLangExtension(null);
+      }
+    }
+    loadLang();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedLanguage]);
 
   // Fetch session and initial code
   useEffect(() => {
@@ -89,8 +167,16 @@ export default function CodeEditor({ sessionId }: Props) {
       });
 
       channel.on("broadcast", { event: "editor" }, (payload) => {
-        const data = payload.payload as AnyPayload;
+        const data = payload.payload as AnyPayloadWithLang;
         switch (data.type) {
+          case "language_change": {
+            // update selected language when someone else changes it
+            const lang = (data as any).language as string | null;
+            if (lang && lang !== selectedLanguage) {
+              setSelectedLanguage(lang);
+            }
+            break;
+          }
           case "sync_request": {
             if (data.from === userId) break;
             safeBroadcast(channel, {
@@ -204,12 +290,15 @@ export default function CodeEditor({ sessionId }: Props) {
 
   const extensions = useMemo(
     () => [
+      // default fallback is JS extension in case selectedLanguage is JS
+      // actual language extension is prepended via langExtension when available
       javascript({ jsx: true, typescript: true }),
       EditorView.lineWrapping,
-      EditorView.editable.of(!isBlocked),
+      // also require a selected language before allowing edits
+      EditorView.editable.of(!isBlocked && !!selectedLanguage),
       keymap.of([]),
     ],
-    [isBlocked]
+    [isBlocked, selectedLanguage]
   );
 
   return (
@@ -233,15 +322,48 @@ export default function CodeEditor({ sessionId }: Props) {
         </div>
       </div>
 
+      <div className="flex items-center gap-3 mb-2">
+        <label className="text-sm text-gray-500">Language:</label>
+        <select
+          value={selectedLanguage ?? ""}
+          onChange={(e) => {
+            const lang = e.target.value || null;
+            setSelectedLanguage(lang);
+            // broadcast language selection to other participants
+            const channel = channelRef.current;
+            if (channel) {
+              safeBroadcast(channel, {
+                type: "language_change",
+                from: userId,
+                language: lang,
+                ts: nowTs(),
+              } as any);
+            }
+          }}
+          className="rounded border-gray-300 px-2 py-1 text-sm"
+        >
+          <option value="">-- Select a language --</option>
+          {SUPPORTED_LANGUAGES.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        <div className="text-xs text-gray-400">(required)</div>
+      </div>
+
       <div className="border rounded-md p-2">
         <CodeMirror
           value={code}
           height="90vh"
           theme="dark"
-          extensions={extensions}
+          extensions={langExtension ? [langExtension, ...extensions] : extensions}
           onChange={onChange}
           basicSetup={{ lineNumbers: true }}
         />
+        {!selectedLanguage && (
+          <div className="mt-2 text-sm text-red-500">Please select a language to enable syntax highlighting.</div>
+        )}
       </div>
     </>
   );

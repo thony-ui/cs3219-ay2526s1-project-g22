@@ -26,8 +26,18 @@ export type CodeUpdatePayload = {
   ts: number;
 };
 
+export type LanguageChangePayload = {
+  type: "language_change";
+  from?: string;
+  language: string | null;
+  ts: number;
+};
+
 export type AnyPayload =
   | SyncRequestPayload
   | SyncResponsePayload
   | SyncAckPayload
   | CodeUpdatePayload;
+
+// include language change in the AnyPayload union
+export type AnyPayloadWithLang = AnyPayload | LanguageChangePayload;
