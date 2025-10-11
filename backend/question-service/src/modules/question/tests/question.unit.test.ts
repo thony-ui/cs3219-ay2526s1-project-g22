@@ -9,8 +9,8 @@ describe("getQuestionsService", () => {
     const spy = jest
       .spyOn(repo, "findQuestionsByDifficulty")
       .mockResolvedValue([]);
-    await getQuestionsService("easy");
-    expect(spy).toHaveBeenCalledWith("easy");
+    await getQuestionsService("Easy");
+    expect(spy).toHaveBeenCalledWith("Easy");
   });
 
   it("should call findQuestionsByTopics if topics are provided", async () => {
@@ -29,22 +29,22 @@ describe("getQuestionsService", () => {
     const spy = jest
       .spyOn(repo, "findQuestionsByTopicsAndDifficulty")
       .mockResolvedValue([]);
-    await getQuestionsService("easy", ["arrays"]);
-    expect(spy).toHaveBeenCalledWith(["arrays"], "easy");
+    await getQuestionsService("Easy", ["arrays"]);
+    expect(spy).toHaveBeenCalledWith(["arrays"], "Easy");
   });
 });
 
 describe("getRandomQuestionService", () => {
   it("should call findRandomQuestion with both difficulty and topics", async () => {
     const spy = jest.spyOn(repo, "findRandomQuestion").mockResolvedValue(null);
-    await getRandomQuestionService("easy", ["arrays"]);
-    expect(spy).toHaveBeenCalledWith(["arrays"], "easy");
+    await getRandomQuestionService("Easy", ["arrays"]);
+    expect(spy).toHaveBeenCalledWith(["arrays"], "Easy");
   });
 
   it("should call findRandomQuestion with only difficulty", async () => {
     const spy = jest.spyOn(repo, "findRandomQuestion").mockResolvedValue(null);
-    await getRandomQuestionService("easy");
-    expect(spy).toHaveBeenCalledWith(undefined, "easy");
+    await getRandomQuestionService("Easy");
+    expect(spy).toHaveBeenCalledWith(undefined, "Easy");
   });
 
   it("should call findRandomQuestion with only topics", async () => {
