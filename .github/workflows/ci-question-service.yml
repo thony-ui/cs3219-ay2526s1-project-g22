@@ -9,7 +9,7 @@ on:
             - master
 
 jobs:
-    user-service-ci:
+    question-service-ci:
         runs-on: ubuntu-latest
 
         steps:
