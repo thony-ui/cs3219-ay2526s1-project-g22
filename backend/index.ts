@@ -29,6 +29,8 @@ const services: Record<string, string> = {
   "collaboration-service":
     process.env.COLLAB_SERVICE_URL || "http://localhost:6004",
   // add more here, e.g. "order-service": process.env.ORDER_SERVICE_URL
+  "question-service":
+    process.env.QUESTION_SERVICE_URL || "http://localhost:6002",
 };
 
 // Simple request log
