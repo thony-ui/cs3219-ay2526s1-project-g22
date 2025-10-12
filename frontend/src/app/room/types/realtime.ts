@@ -1,3 +1,5 @@
+import { Question } from "@/queries/use-get-questions";
+
 export type SyncRequestPayload = {
   type: "sync_request";
   from: string;

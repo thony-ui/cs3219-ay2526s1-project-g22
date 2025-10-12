@@ -7,6 +7,16 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+  piston:
+    image: ghcr.io/engineer-man/piston
+    container_name: piston_api
+    ports:
+      - "2000:2000"
+    privileged: true
+    volumes:
+      - ./piston-data:/piston
+    networks:
+      - shared-network
   api-gateway:
     build:
       context: .
