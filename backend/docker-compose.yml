@@ -17,6 +17,7 @@ services:
       - ./piston-data:/piston
     networks:
       - shared-network
+    platform: linux/amd64
   api-gateway:
     build:
       context: .
@@ -25,7 +26,7 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./:/app
+      - ./index.ts:/app/index.ts
     env_file:
       - .env
     networks:

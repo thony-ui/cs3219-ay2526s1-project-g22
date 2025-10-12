@@ -39,7 +39,6 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await r.json();
-    console.log(data);
 
     // Our harnesses print JSON to stdout
     const out = String(data?.run?.stdout || data?.run?.stderr || "").trim();
