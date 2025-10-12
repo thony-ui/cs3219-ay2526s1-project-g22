@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Home, User, Settings, LogOut, Code2 } from "lucide-react";
+import { User, LogOut, Code2 } from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@/contexts/user-context";
 import { signOut } from "@/lib/auth";
