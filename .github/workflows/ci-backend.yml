@@ -25,8 +25,8 @@ jobs:
 
       # Step 3: Install dependencies
       - name: Install dependencies
-        run: cd backend && npm install
+        run: cd backend/api-gateway-service && npm install
 
       # Step 5: Build the project
       - name: Build project
-        run: cd backend && npm run build
+        run: cd backend/api-gateway-service && npm run build

@@ -9,6 +9,6 @@
     "skipLibCheck": true,
     "isolatedModules": true
   },
-  "include": ["./index.ts"],
+  "include": ["./src"],
   "exclude": ["node_modules", "dist", "builds"]
 }
