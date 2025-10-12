@@ -18,15 +18,15 @@ services:
     networks:
       - shared-network
     platform: linux/amd64
-  api-gateway:
+  api-gateway-service:
     build:
-      context: .
+      context: ./api-gateway-service
       dockerfile: ./Dockerfile
       target: development
     ports:
       - "8000:8000"
     volumes:
-      - ./index.ts:/app/index.ts
+      - ./api-gateway-service/src:/app/src
     env_file:
       - .env
     networks:
