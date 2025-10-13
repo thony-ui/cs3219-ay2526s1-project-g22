@@ -23,4 +23,6 @@ router.delete('/queue/:userId', matchingController.removeFromQueue);
 // Remove matches for all user involved (e.g., after a session ends)
 router.delete('/matches/:matchId', matchingController.clearMatches);
 
+// Check if user is matched
+router.get('/matches/:userId/status', matchingController.getMatchStatus);
 export default router;

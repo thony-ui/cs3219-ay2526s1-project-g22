@@ -170,6 +170,21 @@ class SupabaseService {
 
         return data;
     }
+
+    async getMatchStatus(userId: string) {
+        const { data, error } = await this.client
+            .from('users')
+            .select('match_id')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            logger.error(`Error fetching match status for user ${userId}:`, error.message);
+            throw error;
+        }
+
+        return data ? data.match_id : null;
+    }
 }
 
 export const supabaseService = new SupabaseService();

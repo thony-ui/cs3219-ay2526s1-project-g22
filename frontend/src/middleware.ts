@@ -10,7 +10,7 @@ export async function middleware(request: NextRequest) {
     error,
   } = await supabase.auth.getUser();
 
-  const protectedRoutes = ["/"];
+  const protectedRoutes = ["/", "/matching"];
   const publicRoutes = ["/landing", "/forgot-password"];
 
   const path = request.nextUrl.pathname;
