@@ -259,6 +259,30 @@ export class MatchingService {
             throw error; // rethrow the error after logging
         }
     }
+
+    async getMatchStatus(userId: string) {
+        try {
+            const matchStatus = await redisService.getMatchFromCache(userId);
+            if (!matchStatus) {
+                // try to find in supabase
+                const matchFromSupabase = await supabaseService.getMatchStatus(userId);
+                if (matchFromSupabase && matchFromSupabase.match_id) {
+                    // cache the match status
+                    await redisService.addMatchToCache(
+                        matchFromSupabase.user1_id,
+                        matchFromSupabase.user2_id,
+                        matchFromSupabase.match_id
+                    );
+                    return matchFromSupabase.match_id;
+                }
+                return null;
+            }
+            return matchStatus;
+        } catch (error) {
+            logger.error(`Failed to get match status for user: ${userId}`, error);
+            throw error; // rethrow the error after logging
+        }
+    }
 }
 
 export const matchingService = new MatchingService();

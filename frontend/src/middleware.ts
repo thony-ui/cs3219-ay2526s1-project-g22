@@ -23,7 +23,7 @@ export async function middleware(request: NextRequest) {
     error,
   } = await supabase.auth.getUser();
 
-  const protectedRoutes = ["/", "/room"];
+  const protectedRoutes = ["/", "/room", "/matching"];
   const protectedPatterns = [/^\/room\/[^\/]+$/]; // matches /room/:id
 
   const publicRoutes = ["/landing", "/forgot-password"];

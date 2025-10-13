@@ -248,6 +248,36 @@ class RedisService {
     async removeUserMatchesFromCache(matchId: string) {
         await this.removeMatchFromCache(matchId);
     }
+
+    async getMatchFromCache(userId: string) {
+        const userMatchesKey = `user_matches:${userId}`;
+        const matchIds = await this.client.smembers(userMatchesKey);
+
+        if (matchIds.length === 0) return [];
+
+        const keys = matchIds.map(
+            (matchId) => `${this.MATCHES_KEY_PREFIX}:${matchId}`
+        );
+
+        const values = await this.client.mget(keys);
+
+        const matches = [];
+        for (let i = 0; i < values.length; i++) {
+            const raw = values[i];
+            if (!raw) continue;
+            try {
+                const parsed = JSON.parse(raw);
+                matches.push(parsed);
+            } catch (e) {
+                logger.error(
+                    'Error parsing match data from cache',
+                    { userId, key: keys[i], err: e }
+                );
+            }
+        }
+
+        return matches;
+    }
 }
 
 export const redisService = new RedisService();
