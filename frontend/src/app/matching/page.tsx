@@ -12,17 +12,21 @@ import {
     CardTitle,
 } from "@/components/ui/card";
 import { PreferenceModal } from "./components/PreferenceModal";
+import { useUser } from "@/contexts/user-context";
 
 export default function MatchingPage() {
     const [isMatching, setIsMatching] = useState(false);
     const [elapsed, setElapsed] = useState(0); // seconds
     const intervalRef = useRef<NodeJS.Timeout | null>(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [prefs, setPrefs] = useState<{
         topics: string[];
         difficulty: "easy" | "medium" | "hard";
     } | null>(null);
     const [openPrefs, setOpenPrefs] = useState(false);
-    const userId = "a47abcaa-260f-416a-88b2-dc87b84e5abe"; // TODO: replace with actual user ID logic
+    const { user, isLoading } = useUser(); // TODO: replace with actual user ID logic
+    const userId = user?.id
+    console.log("userId:", userId);
 
     // Start/stop timer
     useEffect(() => {
@@ -55,15 +59,63 @@ export default function MatchingPage() {
         return `${mins}:${secs}`;
     }, [elapsed]);
 
-    const handleToggleMatching = () => {
-        setIsMatching((prev) => {
-            const next = !prev;
-            if (!next) {
-                // when cancelling, clear elapsed as well
-                setElapsed(0);
-            }
-            return next;
+    async function addToQueue(userId: string) {
+        // Adjust base URL if needed (e.g., /api/queue/... if using Next.js route handlers)
+        const res = await fetch(`http://localhost:6002/api/matching/queue/${encodeURIComponent(userId)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            // body: JSON.stringify({ prefs }) // include prefs if your API uses them
         });
+        if (!res.ok) {
+            const msg = await safeErrMsg(res);
+            throw new Error(msg || "Failed to start matching.");
+        }
+        return res.json().catch(() => ({}));
+    }
+
+    async function removeFromQueue(userId: string) {
+        const res = await fetch(`http://localhost:6002/api/matching/queue/${encodeURIComponent(userId)}`, {
+            method: "DELETE",
+        });
+        if (!res.ok) {
+            const msg = await safeErrMsg(res);
+            throw new Error(msg || "Failed to cancel matching.");
+        }
+        return res.json().catch(() => ({}));
+    }
+
+    async function safeErrMsg(res: Response) {
+        try {
+            const data = await res.json();
+            return data?.error || data?.message;
+        } catch {
+            return res.statusText;
+        }
+    }
+
+    const handleToggleMatching = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
+        try {
+            if (!isMatching) {
+                // Start matching: POST /queue/:userId
+                await addToQueue(userId);
+                setIsMatching(true);
+            } else {
+                // Cancel matching: DELETE /queue/:userId
+                await removeFromQueue(userId);
+                setIsMatching(false);
+                setElapsed(0); // Clear elapsed on cancel
+            }
+        } catch (err: any) {
+            console.error(err);
+            alert(err?.message || "Something went wrong. Please try again.");
+            // If starting failed, ensure we remain not matching
+            // If cancel failed, keep the current state as matching
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (

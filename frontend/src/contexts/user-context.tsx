@@ -29,5 +29,6 @@ export const useUser = () => {
   if (context === undefined) {
     throw new Error("useUser must be used within a UserProvider");
   }
+  console.log("returning context: ", context.user?.id)
   return context;
 };
