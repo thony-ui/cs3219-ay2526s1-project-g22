@@ -48,7 +48,7 @@ export default function Home() {
     <div className="flex flex-col w-full min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
       <Header />
 
-      <main className="flex-grow container mx-auto px-6 py-8">
+      <main className="mx-auto px-6 py-8 container my-auto">
         {/* Welcome Section */}
         <div className="mb-12">
           <div className="flex items-center justify-between">
