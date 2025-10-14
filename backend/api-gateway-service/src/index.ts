@@ -32,7 +32,7 @@ const services: Record<string, string> = {
   "question-service":
     process.env.QUESTION_SERVICE_URL || "http://localhost:6002",
     "matching-service":
-    process.env.MATCHING_SERVICE_URL || "http://localhost:6003",
+    process.env.MATCHING_SERVICE_URL || "http://localhost:6006",
 };
 
 // Simple request log
