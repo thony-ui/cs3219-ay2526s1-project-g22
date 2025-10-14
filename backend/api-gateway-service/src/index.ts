@@ -31,6 +31,8 @@ const services: Record<string, string> = {
   // add more here, e.g. "order-service": process.env.ORDER_SERVICE_URL
   "question-service":
     process.env.QUESTION_SERVICE_URL || "http://localhost:6002",
+    "matching-service":
+    process.env.MATCHING_SERVICE_URL || "http://localhost:6003",
 };
 
 // Simple request log

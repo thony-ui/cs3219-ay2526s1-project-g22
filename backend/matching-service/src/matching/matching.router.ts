@@ -24,5 +24,5 @@ router.delete('/queue/:userId', matchingController.removeFromQueue);
 router.delete('/matches/:matchId', matchingController.clearMatches);
 
 // Check if user is matched
-router.get('/matches/:userId/status', matchingController.getMatchStatus);
+// router.get('/matches/:userId/status', matchingController.getMatchStatus);
 export default router;

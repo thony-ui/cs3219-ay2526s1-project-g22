@@ -7,6 +7,8 @@ services:
     ports:
       - "6379:6379"
     restart: unless-stopped
+    networks:
+      - shared-network
   piston:
     image: ghcr.io/engineer-man/piston
     container_name: piston_api
@@ -79,7 +81,7 @@ services:
       dockerfile: ./Dockerfile
       target: development
     ports:
-      - "6002:6002"
+      - "6006:6006"
     volumes:
       - ./matching-service/src:/app/src
     env_file:

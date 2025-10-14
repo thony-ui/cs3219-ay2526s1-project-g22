@@ -50,7 +50,7 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
             try {
                 console.log('load start', { open, userId });
                 const res = await fetch(
-                    `http://localhost:6002/api/matching/preferences/${encodeURIComponent(userId)}`
+                    `http://localhost:8000/api/matching-service/preferences/${encodeURIComponent(userId)}`
                 );
                 console.log('load status', res.status);
                 if (res.status === 404) {
@@ -68,7 +68,7 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
                         setDifficulty(data.difficulty);
                     }
                 }
-            } catch (e: any) {
+            } catch (e: any) { // Explicitly type e as 'any' or 'Error'
                 console.error('Load error', e);
                 if (!ignore) setError(e?.message ?? "Failed to load preferences");
             } finally {
@@ -101,7 +101,7 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
         setError(null);
         try {
             const res = await fetch(
-                `http://localhost:6002/api/matching/preferences/${encodeURIComponent(userId)}`,
+                `http://localhost:8000/api/matching-service/preferences/${encodeURIComponent(userId)}`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -118,7 +118,7 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
             const data: Preferences = await res.json();
             onSaved?.(data);
             onClose();
-        } catch (e: any) {
+        } catch (e: any) { // Explicitly type e as 'any' or 'Error'
             setError(e?.message ?? "Failed to save preferences");
         } finally {
             setSaving(false);
@@ -126,6 +126,22 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
     }
 
     if (!open) return null;
+
+    // Define color classes for each difficulty level
+    const difficultyColors = {
+        easy: {
+            selected: "bg-green-600 text-white border-green-500",
+            unselected: "bg-slate-900/50 text-green-300 border-green-800/40 hover:bg-slate-800/50",
+        },
+        medium: {
+            selected: "bg-orange-600 text-white border-orange-500",
+            unselected: "bg-slate-900/50 text-orange-300 border-orange-800/40 hover:bg-slate-800/50",
+        },
+        hard: {
+            selected: "bg-red-600 text-white border-red-500",
+            unselected: "bg-slate-900/50 text-red-300 border-red-800/40 hover:bg-slate-800/50",
+        },
+    };
 
     return (
         <div
@@ -184,22 +200,23 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
                                 Difficulty
                             </label>
                             <div className="grid grid-cols-3 gap-2">
-                                {(["easy", "medium", "hard"] as Difficulty[]).map((lvl) => (
-                                    <button
-                                        key={lvl}
-                                        type="button"
-                                        onClick={() => setDifficulty(lvl)}
-                                        className={[
-                                            "rounded-md px-3 py-2 text-sm font-medium border transition-colors",
-                                            difficulty === lvl
-                                                ? "bg-blue-600 text-white border-blue-500"
-                                                : "bg-slate-900/50 text-blue-200 border-blue-800/40 hover:bg-slate-800/50",
-                                        ].join(" ")}
-                                        aria-pressed={difficulty === lvl}
-                                    >
-                                        {lvl[0].toUpperCase() + lvl.slice(1)}
-                                    </button>
-                                ))}
+                                {(["easy", "medium", "hard"] as Difficulty[]).map((lvl) => {
+                                    const colors = difficultyColors[lvl];
+                                    return (
+                                        <button
+                                            key={lvl}
+                                            type="button"
+                                            onClick={() => setDifficulty(lvl)}
+                                            className={[
+                                                "rounded-md px-3 py-2 text-sm font-medium border transition-colors",
+                                                difficulty === lvl ? colors.selected : colors.unselected,
+                                            ].join(" ")}
+                                            aria-pressed={difficulty === lvl}
+                                        >
+                                            {lvl[0].toUpperCase() + lvl.slice(1)}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
 

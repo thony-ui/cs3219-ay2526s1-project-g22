@@ -1,13 +1,12 @@
 import Redis from 'ioredis';
 import config from '../config';
 import { logger } from '../utils/logger';
-import {supabaseService} from "./supabase.service"; // We'll create this later
+import {supabaseService} from "./supabase.service";
 
 class RedisService {
     public client: Redis;
     private readonly CACHE_TTL_SECONDS = 3600; // Cache for 1 hour
     private readonly MATCHES_KEY_PREFIX = 'matches';
-    private readonly QUEUE_KEY = 'match_queue';
     private readonly TOPIC_KEY_PREFIX = 'topic';
 
     constructor() {
@@ -142,34 +141,6 @@ class RedisService {
         }
     }
 
-    // --- New Method to Remove Matched Users from Topic Sets ---
-    // This does not delete user preferences, only removes them from topic sets
-    async removeMatchedUsersFromCache(sourceUserId: string, match: any) {
-        try {
-            const sourceUserPreferencesKey = `user_preferences:${sourceUserId}`;
-            const matchUserPreferencesKey = `user_preferences:${match.userId}`;
-
-            const sourcePreferences = await this.get<{ user_id: string; topics: string[]; difficulty: string }>(sourceUserPreferencesKey);
-            const matchPreferences = await this.get<{ user_id: string; topics: string[]; difficulty: string }>(matchUserPreferencesKey);
-
-            if (sourcePreferences) {
-                for (const topic of sourcePreferences.topics) {
-                    const topicKey = `topic:${topic}`;
-                    await this.client.srem(topicKey, match.userId);
-                }
-            }
-            if (matchPreferences) {
-                for (const topic of matchPreferences.topics) {
-                    const topicKey = `topic:${topic}`;
-                    await this.client.srem(topicKey, sourceUserId);
-                }
-            }
-            logger.info(`Removed matched users from cache for ${sourceUserId} and ${match.userId}`);
-        } catch (error) {
-            logger.error(`Error removing matched users from cache for ${sourceUserId} and ${match.userId}:`, error);
-        }
-    }
-
     // --- Method to Add a Match Record ---
     async addMatchToCache(sourceUserId: string, targetUserId: string, matchId: string) {
         try {
@@ -233,16 +204,6 @@ class RedisService {
         pipeline.exec().catch(error => {
             logger.error('Error saving fetched members to cache:', error);
         });
-    }
-
-    async addUserToQueue(userId: string) {
-        await this.set(this.QUEUE_KEY, userId, this.CACHE_TTL_SECONDS);
-        logger.info(`Added user ${userId} to match queue`);
-    }
-
-    async removeUserFromQueue(userId: string) {
-        await this.del(this.QUEUE_KEY);
-        logger.info(`Removed user ${userId} from match queue`);
     }
 
     async removeUserMatchesFromCache(matchId: string) {

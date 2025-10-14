@@ -3,6 +3,8 @@ import {supabaseService} from '../services/supabase.service';
 import {logger} from '../utils/logger';
 import {UserPreference} from '../types';
 import { v4 as uuidv4 } from 'uuid';
+import { webSocketManager } from '../websockets/websocket.manager';
+import {CollaborationData, createCollaboration, ApiError} from "../services/collaborate.service";
 
 export class MatchingService {
     private readonly CACHE_KEY_PREFIX = 'user_match_pref:';
@@ -81,6 +83,8 @@ export class MatchingService {
             logger.error(`Failed to add user ${userId} to Supabase queue:`, error);
             throw error; // rethrow the error after logging
         }
+
+        this.processMatchingQueue();
     }
 
     async removeFromQueue(userId: string) {
@@ -92,120 +96,92 @@ export class MatchingService {
         }
     }
 
-    // --- Main Fuzzy Matchmaking Function ---
-    // fuzzyPercentage is the minimum percentage of topics that must match, this is calculated based on the source user's topics
-    // It counts how many topics the source user has, and then calculates how many topics a match must have in common to be considered a match
-    // e.g. if user A has topics [A, B, C, D] and fuzzyPercentage is 0.75, then a match must have at least 3 of these topics
-    async findFuzzyMatches(sourceUserId: string, fuzzyPercentage = 0.8) {
-        const sourceUserTopics = await this.getUserTopics(sourceUserId);
 
-        if (sourceUserTopics.size === 0) {
-            console.log(`User ${sourceUserId} has no topics.`);
-            return [];
+    // Orchestrator function that attempts to match all users in the queue.
+    // It iterates through the queue, finds the best possible pairs, creates matches,
+    // and notifies them until no more pairs can be formed.
+    async processMatchingQueue(): Promise<void> {
+        logger.info('Processing matching queue...');
+        const queueMembers = await this.getQueueMembers();
+
+        const usersToMatch = new Set(queueMembers);
+
+        if (usersToMatch.size < 2) {
+            logger.info('Not enough users in the queue to form a match.');
+            return;
         }
 
-        const numSourceTopics = sourceUserTopics.size;
-        const requiredMatches = Math.ceil(fuzzyPercentage * numSourceTopics);
+        // Keep trying to form pairs as long as there are users left
+        while (usersToMatch.size >= 2) {
+            // Pick an arbitrary user from the set to be the "source"
+            const currentUser = usersToMatch.values().next().value;
+            usersToMatch.delete(currentUser); // Remove them from the pool of potential partners
 
-        console.log(
-            `User ${sourceUserId} has ${numSourceTopics} topics. ` +
-            `Requires at least ${requiredMatches} matching topics ` +
-            `(${fuzzyPercentage * 100}%).`
-        );
+            // Find the best possible match for this user from the remaining candidates
+            const bestMatch = await this._findBestMatchForUser(currentUser, Array.from(usersToMatch));
 
-        // Fetch all users from queue
-        const queueMembers: string[] = await this.getQueueMembers();
-        if (!queueMembers || queueMembers.length === 0) {
-            console.log('No users in the matching queue.');
-            return [];
+            if (bestMatch) {
+                logger.info(`Match found: ${currentUser} and ${bestMatch}.`);
+
+                // Create the match
+                await this.createMatch(currentUser, bestMatch);
+
+                // Remove the matched partner from the set for the next iteration
+                usersToMatch.delete(bestMatch);
+            } else {
+                logger.info(`No suitable match found for ${currentUser} in this pass.`);
+            }
+        }
+    }
+
+
+    // PRIVATE HELPER: Finds the best possible match for a single user from a list of candidates.
+    // This contains the core "fuzzy logic" from your original function.
+    // @param sourceUserId The user we are finding a match for.
+    // @param candidates An array of user IDs to check against.
+    // @returns The ID of the best matched user, or null if no suitable match is found.
+    private async _findBestMatchForUser(sourceUserId: string, candidates: string[], fuzzyPercentage = 0.8): Promise<string | null> {
+        const sourceUserPrefs = await this.getUserPreference(sourceUserId);
+
+        // no preferences
+        if (!sourceUserPrefs || sourceUserPrefs.topics.length === 0) {
+            return null;
         }
 
-        if (queueMembers.find(id => id === sourceUserId) == undefined) {
-            console.log(`User ${sourceUserId} is not in the matching queue.`);
-            return [];
-        }
+        const sourceUserTopics = new Set(sourceUserPrefs.topics);
+        const requiredMatches = Math.ceil(fuzzyPercentage * sourceUserTopics.size);
 
-        // Fetch members for each topic the source user has
-        const results = await this.fetchMembers(Array.from(sourceUserTopics));
+        const userTopicCounts = new Map<string, number>();
 
-        // 'results' will be an array like [['userA', 'userB'], ['userB', 'userC']]
-        const userCounts = new Map(); // Map<userId, count>
+        for (const candidateId of candidates) {
+            const candidatePrefs = await this.getUserPreference(candidateId);
+            if (!candidatePrefs) continue;
 
-        for (const result of results) {
-            for (const userId of result) {
-                if (userId !== String(sourceUserId) && queueMembers.includes(userId)) {
-                    // Don't count the source user themselves and only count users in the queue
-                    userCounts.set(userId, (userCounts.get(userId) || 0) + 1);
+            let commonTopics = 0;
+            for (const topic of candidatePrefs.topics) {
+                if (sourceUserTopics.has(topic)) {
+                    commonTopics++;
                 }
             }
+            userTopicCounts.set(candidateId, commonTopics);
         }
 
-        // Filter candidates based on required match count
-        const matches = [];
-        for (const [userId, count] of userCounts.entries()) {
-            if (count >= requiredMatches) {
-                matches.push(userId);
-                console.log(
-                    `  Candidate ${userId}: Shared ${count} topics. Is a match!`
-                );
-            } else {
-                console.log(
-                    `  Candidate ${userId}: Shared ${count} topics. Not enough for a match.`
-                );
+        // Filter candidates who meet the topic threshold
+        const potentialMatches = candidates.filter(id => (userTopicCounts.get(id) || 0) >= requiredMatches);
+
+        // Sort them by the number of shared topics (descending)
+        potentialMatches.sort((a, b) => (userTopicCounts.get(b) || 0) - (userTopicCounts.get(a) || 0));
+
+        // Find the first one matches on difficulty
+        for (const potentialMatchId of potentialMatches) {
+            const candidatePrefs = await this.getUserPreference(potentialMatchId); // Re-fetching, can be optimized
+            if (candidatePrefs && candidatePrefs.difficulty === sourceUserPrefs.difficulty) {
+                logger.info(`Found a full match for ${sourceUserId}: ${potentialMatchId} (Topics: ${userTopicCounts.get(potentialMatchId)}, Difficulty: ${sourceUserPrefs.difficulty})`);
+                return potentialMatchId; // Found our best match
             }
         }
 
-        if (matches.length === 0) {
-            console.log('No matches found based on topics.');
-            return [];
-        }
-
-        // sort matches by number of shared topics, descending
-        matches.sort((a, b) => (userCounts.get(b) || 0) - (userCounts.get(a) || 0));
-
-        // Filter matches by difficulty level, returns the first match found with the same difficulty
-        let match:string = '';
-        for (const matchTemp of matches) {
-            const isDifficultyMatch = await this.checkDifficultyMatch(sourceUserId, matchTemp);
-            if (!isDifficultyMatch) {
-                console.log(`  Candidate ${matchTemp}: Difficulty level does not match.`);
-            } else {
-                console.log(`  Candidate ${matchTemp}: Difficulty level matches.`);
-                match = matchTemp;
-            }
-        }
-
-        // if there is a match with the same difficulty, cache the matched users and return the match
-        if (match) {
-            console.log('Found matches with the same difficulties for user:', sourceUserId);
-            // generate match ID
-            const matchId = uuidv4();
-
-            console.log('Generated match ID:', matchId);
-            if (matchId == '' || matchId == null) {
-                console.error('Failed to generate match ID');
-                return null;
-            }
-            // update Supabase with the match ID
-            try {
-                const res = await supabaseService.handleNewMatch(sourceUserId, match, matchId);
-                if (!res.success) {
-                    console.error('Failed to handle new match in Supabase:', res.message);
-                    return null;
-                }
-                console.log('Successfully handled new match in Supabase:', res.message);
-            } catch (error) {
-                console.error('Failed to handle new match in Supabase:', error);
-                return null;
-            }
-            // do not cache users when Supabase update fails
-            await redisService.removeMatchedUsersFromCache(sourceUserId, match);
-            await redisService.addMatchToCache(sourceUserId, match, matchId);
-            return match
-        }
-
-        console.log('Matches with the same difficulties not found for user:', sourceUserId);
-        return null
+        return null; // No match found
     }
 
     // --- Helper Function to Check Difficulty Match ---
@@ -281,6 +257,74 @@ export class MatchingService {
         } catch (error) {
             logger.error(`Failed to get match status for user: ${userId}`, error);
             throw error; // rethrow the error after logging
+        }
+    }
+
+
+    // Finalizes a match between two users. This function handles all side effects:
+    // creating a database record, removing users from the queue, and sending WebSocket notifications.
+    async createMatch(userId1: string, userId2: string): Promise<void> {
+        const matchId = uuidv4();
+
+        try {
+            // Step 1: Update the primary database
+            const supabaseRes = await supabaseService.handleNewMatch(userId1, userId2, matchId);
+            if (!supabaseRes.success) {
+                logger.error(`Failed to handle new match in Supabase for ${userId1} and ${userId2}:`, supabaseRes.message);
+                return; // Exit early if the DB write fails
+            }
+            logger.info(`Successfully saved match ${matchId} to Supabase.`);
+
+            // Step 2: Remove users from the queue
+            await this.removeFromQueue(userId1);
+            await this.removeFromQueue(userId2);
+
+            let collaborationData: CollaborationData;
+            try {
+                // Step 3: Create the collaboration room. This is the part that can throw an ApiError.
+                collaborationData = await createCollaboration(userId1, userId2);
+                logger.info(`Successfully created collaboration room ${collaborationData.id} for match ${matchId}.`);
+
+            } catch (error) {
+                // This catch block specifically handles failures from createCollaboration
+                if (error instanceof ApiError) {
+                    logger.error(`Failed to create collaboration room for match ${matchId}. Status: ${error.status}, Message: ${error.message}`);
+                } else {
+                    // Catch any other unexpected errors from the collaboration call
+                    logger.error(`An unexpected error occurred during collaboration room creation for match ${matchId}:`, error);
+                }
+
+                // --- Optional but Recommended: Compensation Logic ---
+                // Since the room creation failed, you might want to "undo" the match.
+                // await supabaseService.deleteMatch(matchId);
+                // Re-add users to the queue? That depends on your business logic.
+                // await this.addToQueue(userId1);
+                // await this.addToQueue(userId2);
+                // ----------------------------------------------------
+
+                return; // Stop execution
+            }
+
+            // Step 4: If we get here, the room was created successfully. Notify users.
+            const payload = {
+                matchId,
+                users: [userId1, userId2],
+                // `collaborationData` is guaranteed to be defined here
+                collaborationUrl: `/room/${collaborationData.id}`
+            };
+
+            const message = {
+                type: 'MATCH_FOUND',
+                payload
+            };
+
+            webSocketManager.sendMessage(userId1, message);
+            webSocketManager.sendMessage(userId2, message);
+
+        } catch (error) {
+            // This outer catch block now handles critical, unexpected errors
+            // from Supabase, Redis (queue), or WebSockets.
+            logger.error(`A critical, unhandled error occurred in createMatch for users ${userId1}, ${userId2}:`, error);
         }
     }
 }

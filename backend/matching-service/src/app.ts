@@ -1,10 +1,31 @@
 import express from "express";
+import expressWs from 'express-ws';
 import cors from "cors";
 import matchingRouter from "./matching/matching.router";
 import config from "./config";
 import { logger } from "./utils/logger";
+import { webSocketManager } from './websockets/websocket.manager';
+
 
 const app = express();
+const wsInstance = expressWs(app);
+
+// --- Define the WebSocket route ---
+wsInstance.app.ws('/ws/matching/:userId', (ws, req) => {
+    const userId = req.params.userId;
+
+    if (!userId) {
+        // Close the connection if no user ID is provided
+        ws.close(1008, 'User ID is required.');
+        return;
+    }
+
+    // Register the client with our manager
+    webSocketManager.addClient(userId, ws);
+
+    // You can send a welcome message if you want
+    ws.send(JSON.stringify({ type: 'CONNECTION_ESTABLISHED' }));
+});
 
 // CORS: allow your frontend origin
 app.use(
@@ -29,7 +50,7 @@ app.get("/health", (req, res) => {
 });
 
 // Matching service routes
-app.use("/api/matching", matchingRouter);
+app.use("/", matchingRouter);
 
 const startServer = async () => {
     app.listen(config.port, () => {
