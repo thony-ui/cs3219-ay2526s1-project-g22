@@ -185,6 +185,20 @@ class SupabaseService {
 
         return data ? data.match_id : null;
     }
+
+    async deleteMatch(matchId: string | Uint8Array<ArrayBufferLike>) {
+        const { data, error } = await this.client
+            .from('matches')
+            .delete()
+            .eq('id', matchId);
+
+        if (error) {
+            logger.error(`Error deleting match with ID ${matchId}:`, error.message);
+            throw error;
+        }
+
+        return data;
+    }
 }
 
 export const supabaseService = new SupabaseService();

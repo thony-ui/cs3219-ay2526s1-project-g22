@@ -30,47 +30,6 @@ export class MatchingService {
         return preferences;
     }
 
-    // --- Helper Function to Get a User's Topics ---
-    // Returns a Set of topics for the user
-    async getUserTopics(userId: string) {
-        let preferences = await this.getUserPreference(userId);
-        if (!preferences) {
-            logger.info('No preferences found for user:', userId);
-            return new Set<string>();
-        }
-
-        if (preferences.topics.length === 0) {
-            logger.info('User has no topics:', userId);
-            return new Set<string>();
-        }
-
-        // convert to Set to ensure uniqueness
-        return new Set(preferences.topics);
-    }
-
-    // --- Fetch Members for Multiple topics ---
-    // This function fetches user_ids for multiple topics from Redis.
-    // If not found in Redis, it falls back to Supabase and caches the results.
-    // Returns an array of arrays, where each inner array contains user_ids for the corresponding topic.
-    // If a topic has no members or an error occurs, returns an empty array for that topic.
-    async fetchMembers(user_ids: string[]): Promise<string[][]> {
-        let queryResult = await redisService.fetchMembers(user_ids);
-
-        if (!queryResult) {
-            logger.error('Failed to fetch members for topic keys in cache, trying to find in supabase:', user_ids);
-            queryResult = await supabaseService.fetchMembers(user_ids);
-            if (!queryResult) {
-                logger.error('Failed to fetch members for topic keys in supabase:', user_ids);
-                return user_ids.map(() => []); // Return empty arrays on error
-            }
-
-            // Cache the results in Redis for future use
-            await redisService.saveFetchedMembersToCache(user_ids, queryResult);
-        }
-
-        return queryResult
-    }
-
     // --- Queue Management ---
     // These functions manage adding/removing users from the matchmaking queue in Supabase.
     // The function only fetches from Supabase, no caching is done here.
@@ -136,7 +95,6 @@ export class MatchingService {
 
 
     // PRIVATE HELPER: Finds the best possible match for a single user from a list of candidates.
-    // This contains the core "fuzzy logic" from your original function.
     // @param sourceUserId The user we are finding a match for.
     // @param candidates An array of user IDs to check against.
     // @returns The ID of the best matched user, or null if no suitable match is found.
@@ -182,20 +140,6 @@ export class MatchingService {
         }
 
         return null; // No match found
-    }
-
-    // --- Helper Function to Check Difficulty Match ---
-    // Returns true if both users have the same difficulty level
-    async checkDifficultyMatch(sourceUserId: string, candidateUserId: string): Promise<boolean> {
-        const sourcePrefs = await this.getUserPreference(sourceUserId);
-        const candidatePrefs = await this.getUserPreference(candidateUserId);
-
-        if (!sourcePrefs || !candidatePrefs) {
-            logger.warn(`Preferences not found for one of the users: ${sourceUserId}, ${candidateUserId}`);
-            return false;
-        }
-
-        return sourcePrefs.difficulty === candidatePrefs.difficulty;
     }
 
     // --- Update User Preferences and Invalidate Cache ---
@@ -294,13 +238,10 @@ export class MatchingService {
                     logger.error(`An unexpected error occurred during collaboration room creation for match ${matchId}:`, error);
                 }
 
-                // --- Optional but Recommended: Compensation Logic ---
-                // Since the room creation failed, you might want to "undo" the match.
-                // await supabaseService.deleteMatch(matchId);
-                // Re-add users to the queue? That depends on your business logic.
-                // await this.addToQueue(userId1);
-                // await this.addToQueue(userId2);
-                // ----------------------------------------------------
+                // revert the match creation in Supabase and re-add users to the queue
+                await supabaseService.deleteMatch(matchId);
+                await this.addToQueue(userId1);
+                await this.addToQueue(userId2);
 
                 return; // Stop execution
             }
