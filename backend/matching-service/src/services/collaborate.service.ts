@@ -17,7 +17,7 @@ export interface CollaborationData {
     status:         string;
 }
 
-const API_URL = process.env.COLLABORATION_SERVICE_URL || 'http://localhost:6004';
+const API_URL = process.env.COLLAB_SERVICE_URL || 'http://localhost:6004/';
 
 // A helper function to handle fetch requests and responses
 async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
