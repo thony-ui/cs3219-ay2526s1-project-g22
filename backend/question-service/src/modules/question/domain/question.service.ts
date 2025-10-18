@@ -5,6 +5,7 @@ import {
   findQuestionsByTopicsAndDifficulty,
   findAllQuestions,
   findRandomQuestion,
+  findQuestionById,
 } from "./question.repository";
 
 export async function getQuestionsService(
@@ -40,4 +41,10 @@ export async function getRandomQuestionService(
     : undefined;
   const t = topics && topics.length > 0 ? topics : undefined;
   return await findRandomQuestion(t, diff);
+}
+
+export async function getQuestionByIdService(
+  id: string
+): Promise<Question | null> {
+  return await findQuestionById(id);
 }

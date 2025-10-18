@@ -31,11 +31,7 @@ function QuestionStats({
         <div
           className={`h-16 w-16 rounded-full flex items-center justify-center ${colorClasses[tag].bg}`}
         >
-          <Badge
-            className={`bg-${colorClasses[tag].text.replace("text-", "")} ${
-              colorClasses[tag].hover
-            } ${colorClasses[tag].text} text-lg px-3 py-1`}
-          >
+          <Badge className={`bg-transparent text-lg px-3 py-1 text-black`}>
             {tag}
           </Badge>
         </div>

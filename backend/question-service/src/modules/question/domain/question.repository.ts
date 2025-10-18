@@ -56,3 +56,10 @@ export async function findRandomQuestion(
     .toArray();
   return (result[0] as Question) || null;
 }
+
+export async function findQuestionById(id: string): Promise<Question | null> {
+  const db = getDb();
+  return db
+    .collection<Question>("questions")
+    .findOne({ _id: new ObjectId(id) as any });
+}

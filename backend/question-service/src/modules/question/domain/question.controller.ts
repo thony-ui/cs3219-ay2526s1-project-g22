@@ -4,6 +4,7 @@ import {
   findQuestionsByTopics,
   findAllQuestions,
   findRandomQuestion,
+  findQuestionById,
 } from "./question.repository";
 import logger from "../../../logger";
 
@@ -71,5 +72,23 @@ export const getRandomQuestion = async (req: Request, res: Response) => {
   } catch (err) {
     logger.error(`Error fetching random question: ${err}`);
     res.status(500).json({ error: "Failed to fetch random question" });
+  }
+};
+
+export const getQuestionById = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    logger.info(`Received GET /api/questions/${id}`);
+    const question = await findQuestionById(id);
+    if (question) {
+      logger.info(`Found question by id ${id}: ${question.title}`);
+      res.json(question);
+    } else {
+      logger.info(`No question found with id: ${id}`);
+      res.status(404).json({ error: "Question not found" });
+    }
+  } catch (err) {
+    logger.error(`Error fetching question by id: ${err}`);
+    res.status(500).json({ error: "Failed to fetch question" });
   }
 };
