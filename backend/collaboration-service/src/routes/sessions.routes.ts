@@ -44,12 +44,39 @@ router.post(
       //   return res.status(400).json({ error: "Missing Participants" });
       // }
 
-      const session = await createSession(
-        interviewer_id,
-        interviewee_id,
-        initial_code
-      );
-      res.json(session);
+      // Fetch a random question from the question service
+      const questionServiceUrl = process.env.QUESTION_SERVICE_URL || "http://localhost:5002";
+      let questionId: string;
+      try {
+        const response = await fetch(`${questionServiceUrl}/questions/random`);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("Question service error response:", errorText);
+          throw new Error("Failed to fetch random question");
+        }
+        const question = await response.json();
+        // Use _id or id depending on what the question service returns
+        questionId = question.id || question._id;
+        if (!questionId) {
+          throw new Error("No question id returned from question service");
+        }
+      } catch (error) {
+        console.error("Error fetching random question:", error);
+        return res.status(500).json({ error: "Could not retrieve random question" });
+      }
+
+      // Create the session in Supabase with the questionId
+      try {
+        const session = await createSession(
+          interviewer_id,
+          interviewee_id,
+          questionId,
+          initial_code
+        );
+        res.json(session);
+      } catch (err) {
+        res.status(500).json({ error: (err as Error).message });
+      }
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }

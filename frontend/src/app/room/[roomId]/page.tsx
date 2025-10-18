@@ -1,25 +1,49 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import CodeEditor from "../_components/CodeEditor";
-import { useGetRandomQuestion } from "@/queries/use-get-questions";
+import axiosInstance from "@/lib/axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function RoomPage({
-  params,
-}: {
-  params: Promise<{ roomId: string }>;
-}) {
+export default function RoomPage({ params }: { params: Promise<{ roomId: string }>}) {
   const { roomId } = React.use(params);
+  const [question, setQuestion] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch a random question - you might want to modify this based on room preferences
-  const {
-    data: question,
-    isLoading,
-    error,
-  } = useGetRandomQuestion("Medium", ["Array"]);
+  useEffect(() => {
+    async function fetchQuestion() {
+      try {
+        // 1. Fetch session to get question_id
+        const sessionRes = await axiosInstance.get(
+          `/api/collaboration-service/sessions/${roomId}`
+        );
+        const session = sessionRes.data;
+        const questionId = session.question_id;
+        if (!questionId) throw new Error("No question_id in session");
+        // 2. Fetch question by id
+        try {
+          const questionRes = await axiosInstance.get(
+            `/api/question-service/questions/${questionId}`
+          );
+          setQuestion(questionRes.data);
+        } catch (err) {
+          // Fallback: fetch a random question
+          const randomRes = await axiosInstance.get(
+            `/api/question-service/questions/random`
+          );
+          setQuestion({ ...randomRes.data, fallback: true });
+        }
+      } catch (err: any) {
+        setError(err.message || "Failed to load question");
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchQuestion();
+  }, [roomId]);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <div className="text-lg">Loading question...</div>
@@ -30,7 +54,7 @@ export default function RoomPage({
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="text-lg text-red-600">Error loading question</div>
+        <div className="text-lg text-red-600">Error loading question: {error}</div>
       </div>
     );
   }
@@ -68,11 +92,11 @@ export default function RoomPage({
                 <div className="question-content">
                   {question?.content ? (
                     <div
-                      className="prose prose-invert prose-sm max-w-none 
-                                prose-headings:text-slate-200 prose-p:text-slate-300 
-                                prose-strong:text-white prose-code:bg-slate-700/50 
-                                prose-code:text-emerald-400 prose-code:px-1 prose-code:py-0.5 
-                                prose-code:rounded prose-pre:bg-slate-900/50 
+                      className="prose prose-invert prose-sm max-w-none \
+                                prose-headings:text-slate-200 prose-p:text-slate-300 \
+                                prose-strong:text-white prose-code:bg-slate-700/50 \
+                                prose-code:text-emerald-400 prose-code:px-1 prose-code:py-0.5 \
+                                prose-code:rounded prose-pre:bg-slate-900/50 \
                                 prose-pre:border prose-pre:border-slate-600/30"
                       dangerouslySetInnerHTML={{ __html: question.content }}
                     />
@@ -90,11 +114,11 @@ export default function RoomPage({
                       Tags:
                     </p>
                     <div className="flex flex-wrap gap-2">
-                      {question.tags.map((tag, index) => (
+                      {question.tags.map((tag: string, index: number) => (
                         <span
                           key={index}
-                          className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-3 py-1 
-                                   rounded-full text-xs font-medium transition-colors duration-200 
+                          className="bg-blue-600/80 hover:bg-blue-500/80 text-white px-3 py-1 \
+                                   rounded-full text-xs font-medium transition-colors duration-200 \
                                    shadow-sm border border-blue-500/30"
                         >
                           {tag}

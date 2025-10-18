@@ -254,7 +254,6 @@ export default function MatchingPage() {
                 </button>
               </Alert>
             )}
-
             <Card className="bg-slate-800/50 border-blue-800/30 backdrop-blur-sm">
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -271,6 +270,15 @@ export default function MatchingPage() {
                   >
                     {isMatching ? "Searching..." : "Idle"}
                   </span>
+                </div>
+                {/* Preferences Button inside Live Matching header */}
+                <div className="mt-4 flex justify-end">
+                  <button
+                    onClick={() => setOpenPrefs(true)}
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                  >
+                    Preferences
+                  </button>
                 </div>
               </CardHeader>
               <CardContent>
@@ -321,6 +329,7 @@ export default function MatchingPage() {
                 </p>
               </CardContent>
             </Card>
+      
           </section>
         </div>
       </main>
