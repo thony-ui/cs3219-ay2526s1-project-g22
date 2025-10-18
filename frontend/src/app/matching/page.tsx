@@ -178,6 +178,7 @@ export default function MatchingPage() {
         setIsMatching(false);
         setElapsed(0);
       }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (err: any) {
       console.error(err);
       setAlertInfo({
