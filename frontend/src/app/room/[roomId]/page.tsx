@@ -25,6 +25,7 @@ export default function RoomPage({
         );
         const session = sessionRes.data;
         const questionId = session.question_id;
+        console.log("question id:", questionId);
         if (!questionId) throw new Error("No question_id in session");
         // 2. Fetch question by id
         try {
@@ -34,10 +35,10 @@ export default function RoomPage({
           setQuestion(questionRes.data);
         } catch (err) {
           // Fallback: fetch a random question
-          const randomRes = await axiosInstance.get(
-            `/api/question-service/questions/random`
-          );
-          setQuestion({ ...randomRes.data, fallback: true });
+          // const randomRes = await axiosInstance.get(
+          //   `/api/question-service/questions/random`
+          // );
+          // setQuestion({ ...randomRes.data, fallback: true });
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {

@@ -273,14 +273,6 @@ export default function MatchingPage() {
                   </span>
                 </div>
                 {/* Preferences Button inside Live Matching header */}
-                <div className="mt-4 flex justify-end">
-                  <button
-                    onClick={() => setOpenPrefs(true)}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-                  >
-                    Preferences
-                  </button>
-                </div>
               </CardHeader>
               <CardContent>
                 <CardDescription className="text-blue-200 mb-6">
@@ -330,7 +322,6 @@ export default function MatchingPage() {
                 </p>
               </CardContent>
             </Card>
-      
           </section>
         </div>
       </main>

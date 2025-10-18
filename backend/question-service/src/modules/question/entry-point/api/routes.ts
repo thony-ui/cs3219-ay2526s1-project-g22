@@ -1,5 +1,6 @@
 import { Router } from "express";
 import {
+  getQuestionById,
   getQuestions,
   getRandomQuestion,
 } from "../../domain/question.controller";
@@ -17,6 +18,14 @@ router.get("/", async (req, res, next) => {
 router.get("/random", async (req, res, next) => {
   try {
     await getRandomQuestion(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    await getQuestionById(req, res);
   } catch (err) {
     next(err);
   }
