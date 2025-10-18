@@ -5,8 +5,13 @@ import CodeEditor from "../_components/CodeEditor";
 import axiosInstance from "@/lib/axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function RoomPage({ params }: { params: Promise<{ roomId: string }>}) {
+export default function RoomPage({
+  params,
+}: {
+  params: Promise<{ roomId: string }>;
+}) {
   const { roomId } = React.use(params);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [question, setQuestion] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,6 +39,7 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
           );
           setQuestion({ ...randomRes.data, fallback: true });
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         setError(err.message || "Failed to load question");
       } finally {
@@ -54,7 +60,9 @@ export default function RoomPage({ params }: { params: Promise<{ roomId: string 
   if (error) {
     return (
       <div className="flex h-screen items-center justify-center">
-        <div className="text-lg text-red-600">Error loading question: {error}</div>
+        <div className="text-lg text-red-600">
+          Error loading question: {error}
+        </div>
       </div>
     );
   }
