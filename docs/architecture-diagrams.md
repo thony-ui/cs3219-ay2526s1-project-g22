@@ -35,7 +35,7 @@ graph TB
 
     subgraph "Data Layer"
         MongoDB[(MongoDB<br/>Question DB)]
-        Supabase[(Supabase<br/>User & Auth)]
+        Supabase[(Supabase<br/>User & Auth<br/>Queue Storage)]
         Redis[(Redis<br/>Matching Queue)]
     end
 
@@ -55,7 +55,8 @@ graph TB
 
     UserService -->|Query| Supabase
     QuestionService -->|Query| MongoDB
-    MatchingService -->|Queue| Redis
+    MatchingService -->|Preference| Redis
+    MatchingService -->|Queue| Supabase
     CollabService -->|WebSocket| SupabaseRT
 
     UI -->|WebSocket| SupabaseRT
@@ -140,71 +141,60 @@ graph TB
 ## 4. Matching Service Architecture
 
 ```mermaid
-graph TB
+graph TD
+    matchFound[Match Found]
+    
     subgraph "Matching Service"
-        MController[Matching Controller]
-        MManager[Match Manager]
-        QueueManager[Queue Manager]
-        AlgoEngine[Matching Algorithm]
+        MController[Matching Controller] -->|2. Process Request| MService[Matching Service]
     end
 
-    subgraph "Redis Queue"
-        WaitingQueue[(Waiting Queue<br/>User preferences stored)]
+    subgraph "Data Stores"
+        Redis[(Redis Cache)]
+        Supabase[(Supabase DB<br/>Queue & Preferences)]
     end
 
-    subgraph "Matching Flow"
-        User1[User A<br/>Difficulty: Medium<br/>Topics: Array]
-        User2[User B<br/>Difficulty: Medium<br/>Topics: Array]
-        Match[Match Found!<br/>Create Session]
+    subgraph "External Systems"
+        CollabSvc[Collaboration Service]
+        WebSocket[WebSocket Manager]
     end
 
-    User1 -->|1. Request Match| MController
-    User2 -->|1. Request Match| MController
-    MController -->|2. Add to Queue| QueueManager
-    QueueManager -->|3. Store| WaitingQueue
-    QueueManager -->|4. Trigger| AlgoEngine
-    AlgoEngine -->|5. Find Matching Preferences| WaitingQueue
-    AlgoEngine -->|6. Match Found| MManager
-    MManager -->|7. Create Session| Match
-    Match -->|8. Notify via WebSocket| User1
-    Match -->|8. Notify via WebSocket| User2
+    User[User] -->|1. Request Match| MController
 
-    style Match fill:#4CAF50
+    MService -->|3. Read/Write Cache| Redis
+    MService -->|4. Read/Write DB| Supabase
+    MService --> matchFound -->|5. Create Room API Call| CollabSvc
+    matchFound -->|6. Send Match Notification| WebSocket
+
+WebSocket -->|7. Push Notification to User| User
+
+style MService fill:#BDE0FE,stroke:#333,stroke-width:2px
 ```
 
 **Matching Algorithm:**
 
 ```mermaid
 flowchart TD
-    Start([User Clicks Find Match])
-    AddQueue[Add User to Redis Queue<br/>with Preferences]
-    CheckQueue{Any Users<br/>in Queue?}
-    MatchCriteria{Preferences<br/>Match?}
-    CreateRoom[Create Collaboration Room<br/>Assign Random Question]
-    Notify[Notify Both Users<br/>Redirect to Room]
-    Wait[Keep Waiting<br/>Timeout: 30s]
-    Timeout{Timeout<br/>Reached?}
-    Cancel[Remove from Queue<br/>Notify User]
+    Start([User Requests Match]) --> AddToQueue[Add User to Queue &<br/>Trigger Matching Process]
 
-    Start --> AddQueue
-    AddQueue --> CheckQueue
-    CheckQueue -->|Yes| MatchCriteria
-    CheckQueue -->|No| Wait
-    MatchCriteria -->|Match Found| CreateRoom
-    MatchCriteria -->|No Match| Wait
-    CreateRoom --> Notify
-    Wait --> Timeout
-    Timeout -->|Yes| Cancel
-    Timeout -->|No| CheckQueue
+    AddToQueue --> CheckQueue{Are there at least<br/>2 users in the queue?}
+    CheckQueue -- No --> Wait[Wait for more users]
+
+    CheckQueue -- Yes --> FindPairs[Iterate through users<br/>to find the best possible pairs]
+
+    FindPairs --> MatchFound{Pair Found?}
+
+    MatchFound -- No Match This Round --> Wait
+
+    MatchFound -- Yes, Pair Found! --> CreateRoom[Create Collaboration Room<br/>& Notify Both Users]
+
+    CreateRoom --> RemoveFromQueue[Remove Matched Users<br/>from Queue]
 
     style CreateRoom fill:#4CAF50
-    style Cancel fill:#f44336
 ```
 
 **Edge Cases Handled:**
 
-- No matches available → Timeout after 30s
-- Simultaneous requests → Redis atomic operations
+- Simultaneous requests → Supabase atomic operations
 - User disconnects → Remove from queue
 - Duplicate requests → Check existing queue entry
 
@@ -291,11 +281,38 @@ sequenceDiagram
 ```mermaid
 graph TB
     subgraph "Supabase PostgreSQL"
-        Users[Users Table<br/>- id: uuid<br/>- email: string<br/>- username: string<br/>- name: string<br/>- created_at: timestamp]
-
-        Sessions[Sessions Table<br/>- id: uuid<br/>- user1_id: uuid<br/>- user2_id: uuid<br/>- question_id: string<br/>- current_code: text<br/>- status: enum<br/>- created_at: timestamp]
-
-        Users -->|1:N| Sessions
+        users["
+            <b>users</b>
+            <hr>
+            - uuid: id (PK)<br/> 
+            - timestamptz: created_at<br/>
+            - text: name<br/>
+            - text: email<br/>
+            - text: avatar_url<br/>
+            - boolean: in_queue<br/>
+            - uuid: match_id
+            "]
+            
+            user_preferences["
+            <b>user_preferences</b>
+            <hr>
+            - uuid: user_id (PK, FK)<br/>
+            - ARRAY: topics<br/>
+            - varchar: difficulty
+            "]
+            
+            sessions["
+            <b>sessions</b>
+            <hr>
+            - uuid: id (PK)<br/>
+            - text: interviewer_id (FK)<br/>
+            - text: interviewee_id (FK)<br/>
+            - text: status<br/>
+            - text: current_code<br/>
+            - timestamptz: created_at<br/>
+            - timestamptz: updated_at<br/>
+            - text: question_id
+        "]
     end
 
     subgraph "MongoDB"
@@ -303,15 +320,23 @@ graph TB
     end
 
     subgraph "Redis"
-        MatchQueue[Match Queue<br/>Key: waiting-users<br/>Value: JSON<br/>TTL: 30s]
+        PreferenceCache["User Preference Cache<br/>Key: user_match_pref:{userId}<br/>Value: JSON of prefs"]
+        MatchStatusCache["Match Status Cache<br/>Key: matches:{matchId}<br/>Value: JSON of match data"]
     end
 
-    Sessions -.->|References| Questions
-
-    style Users fill:#3ECF8E
-    style Sessions fill:#3ECF8E
+    sessions -.->|References| Questions
+    
+    %% --- Relationships ---
+    users -- "one-to-one" --> user_preferences
+    users -- "one-to-many (interviewer)" --> sessions
+    users -- "one-to-many (interviewee)" --> sessions
+    
+    style users fill:#3ECF8E
+    style sessions fill:#3ECF8E
+    style user_preferences fill:#3ECF8E
     style Questions fill:#4DB33D
-    style MatchQueue fill:#DC382D
+    style PreferenceCache fill:#DC382D
+    style MatchStatusCache fill:#DC382D
 ```
 
 ---
@@ -439,38 +464,45 @@ graph TB
 ```mermaid
 sequenceDiagram
     participant U1 as User A
-    participant UI as Frontend
+    participant Frontend
     participant Gateway as API Gateway
-    participant Match as Matching Service
-    participant Redis as Redis Queue
-    participant Collab as Collaboration Service
-    participant Question as Question Service
+    participant MatchSvc as Matching Service
+    participant Supabase as Supabase DB
+    participant CollabSvc as Collaboration Service
+    participant WebSocket
+
+    U1->>Frontend: Clicks "Find Match"
+    Frontend->>Gateway: POST /queue/add
+    Gateway->>MatchSvc: Add User A to queue
+
+    MatchSvc->>Supabase: UPDATE users SET in_queue=true WHERE id=A
+    MatchSvc->>MatchSvc: processMatchingQueue()
+    note right of MatchSvc: Not enough users yet.
+    MatchSvc-->>Frontend: HTTP 200 OK (Queued)
+
+%% Some time later... %%
+
     participant U2 as User B
+    U2->>Frontend: Clicks "Find Match"
+    Frontend->>Gateway: POST /queue/add
+    Gateway->>MatchSvc: Add User B to queue
+    MatchSvc->>Supabase: UPDATE users SET in_queue=true WHERE id=B
+    MatchSvc->>MatchSvc: processMatchingQueue()
 
-    U1->>UI: Click "Find Match"
-    UI->>Gateway: POST /matching/find
-    Gateway->>Match: Forward request
-    Match->>Redis: Add User A to queue
-    Redis-->>Match: Queued
-    Match-->>UI: Waiting for match
-
-    U2->>UI: Click "Find Match"
-    UI->>Gateway: POST /matching/find
-    Gateway->>Match: Forward request
-    Match->>Redis: Add User B to queue
-    Redis->>Match: Check for matches
-    Match->>Match: Algorithm finds match
-
-    Match->>Question: GET /questions/random
-    Question-->>Match: Return question
-
-    Match->>Collab: POST /sessions/create
-    Collab-->>Match: Session ID
-
-    Match->>UI: Notify User A (WebSocket)
-    Match->>UI: Notify User B (WebSocket)
-    UI->>U1: Redirect to room/{sessionId}
-    UI->>U2: Redirect to room/{sessionId}
+    alt Match Found
+        note right of MatchSvc: Algorithm finds A and B match.
+        MatchSvc->>CollabSvc: POST /sessions (Create Room)
+        CollabSvc-->>MatchSvc: Returns { room_id }
+        MatchSvc->>Supabase: Removes A & B from queue
+        MatchSvc->>WebSocket: Notify User A (room_id)
+        MatchSvc->>WebSocket: Notify User B (room_id)
+        WebSocket-->>U1: Pushes notification
+        WebSocket-->>U2: Pushes notification
+        Frontend->>U1: Redirect to /room/{room_id}
+        Frontend->>U2: Redirect to /room/{room_id}
+    else No Match Found
+        note right of MatchSvc: Users wait for next trigger.
+    end
 ```
 
 ### 9.2 Real-time Code Collaboration
@@ -535,9 +567,9 @@ sequenceDiagram
 
 ### 2. **Matching Service**
 
-- **Algorithm**: Queue-based with preference matching
-- **Edge Cases**: Timeout, duplicates, disconnections
-- **Integration**: Redis queue + WebSocket notifications
+- **Algorithm**: Batch-processing on a persistent queue, matching users based on shared topics and identical difficulty.
+- **Hybrid Data Storage**: Supabase acts as the definitive source of truth for all user data, while Redis serves as a high-speed, in-memory cache for frequently accessed user preferences.
+- **Key Integrations**: Supabase for the persistent queue, Redis for caching user preferences, and WebSockets for real-time match notifications.
 
 ### 3. **Collaboration Service**
 

@@ -3,23 +3,6 @@ import { matchingService } from './matching.service';
 import { logger } from '../utils/logger';
 
 class MatchingController {
-    // Get fuzzy matches for a user based on preferences and queue status
-    async getMatches(req: Request, res: Response) {
-        const userId = req.params.userId;
-
-        if (!userId) {
-            return res.status(400).json({ message: 'User ID is required.' });
-        }
-
-        try {
-            const matches = await matchingService.findFuzzyMatches(userId);
-            res.status(200).json(matches);
-        } catch (error) {
-            logger.error(`Error in getMatches for user ${userId}:`, error);
-            res.status(500).json({ message: 'Internal server error.' });
-        }
-    }
-
     // Get user preferences
     async getUserPreferences(req: Request, res: Response) {
         const userId = req.params.userId;
@@ -112,22 +95,6 @@ class MatchingController {
             res.status(200).json({ message: 'Matches cleared for user.' });
         } catch (error) {
             logger.error(`Error in clearMatches for match ${matchId}:`, error);
-            res.status(500).json({ message: 'Internal server error.' });
-        }
-    }
-
-    async getMatchStatus (req: Request, res: Response) {
-        const userId = req.params.userId;
-
-        if (!userId) {
-            return res.status(400).json({ message: 'User ID is required.' });
-        }
-
-        try {
-            const status = await matchingService.getMatchStatus(userId);
-            res.status(200).json({ status });
-        } catch (error) {
-            logger.error(`Error in getMatchStatus for user ${userId}:`, error);
             res.status(500).json({ message: 'Internal server error.' });
         }
     }
