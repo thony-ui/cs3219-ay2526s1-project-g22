@@ -188,9 +188,9 @@ class SupabaseService {
 
     async deleteMatch(matchId: string | Uint8Array<ArrayBufferLike>) {
         const { data, error } = await this.client
-            .from('matches')
-            .delete()
-            .eq('id', matchId);
+          .from('users')
+          .update({ match_id: null })
+          .eq('match_id', matchId);
 
         if (error) {
             logger.error(`Error deleting match with ID ${matchId}:`, error.message);
