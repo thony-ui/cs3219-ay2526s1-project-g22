@@ -30,6 +30,8 @@ import { languageMap } from "@/utils/language-config";
 import CodeEditorHeader from "./CodeEditorHeader";
 import CodeEditorLanguageSelectionAndRunButton from "./CodeEditorLanguageSelectionAndRunButton";
 import CodeEditorSubmissionResults from "./CodeEditorSubmissionResults";
+import RealtimeContext from "../contexts/realtime-context";
+import { useRouter } from "next/navigation";
 
 // Type definitions
 interface CodeSnippet {
@@ -52,6 +54,8 @@ type Props = {
 };
 
 export default function CodeEditor({ sessionId, question }: Props) {
+  const router = useRouter();
+  const [sessionEnded, setSessionEnded] = useState(false);
   const { user } = useUser();
   const userId = user?.id;
 
@@ -153,6 +157,34 @@ export default function CodeEditor({ sessionId, question }: Props) {
     codeRef.current = code;
   }, [code]);
 
+  // end the collab session
+  const endSession = useCallback(() => {
+    const channel = channelRef.current;
+    if (!channel) return;
+
+    channel.send({
+      type: "broadcast",
+      event: "exit_session",
+      payload: {
+        type: "end_session",
+        from: userId,
+        ts: Date.now(),
+      },
+    });
+
+    if (snapshotIntervalRef.current) {
+      clearInterval(snapshotIntervalRef.current);
+      snapshotIntervalRef.current = null;
+    }
+
+    if (channelRef.current) {
+      channelRef.current.unsubscribe();
+      channelRef.current = null;
+    }
+    setSessionEnded(true);
+    setTimeout(() => router.push("/"), 1000);
+  }, [userId, router]);
+
   // Join Supabase channel
   const joinRealtimeChannel = useCallback(
     async (initialCode: string) => {
@@ -166,6 +198,14 @@ export default function CodeEditor({ sessionId, question }: Props) {
 
       channel.on("presence", { event: "sync" }, () => {
         const state = channel.presenceState();
+      });
+
+      channel.on("broadcast", { event: "exit_session" }, (payload) => {
+        const data = payload.payload as { type: string; from: string };
+        if (data.type === "end_session") {
+          console.log("Received end session signal");
+          endSession();
+        }
       });
 
       channel.on("broadcast", { event: "editor" }, (payload) => {
@@ -328,57 +368,74 @@ export default function CodeEditor({ sessionId, question }: Props) {
   }, [isBlocked, selectedLanguage]);
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Header with room info and controls */}
-      <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
-        <CodeEditorHeader
-          sessionId={sessionId}
-          userId={userId || "unknown"}
-          isBlocked={isBlocked}
-        />
-      </div>
-
-      {/* Language Selection and Execute Controls */}
-      <CodeEditorLanguageSelectionAndRunButton
-        selectedLanguage={selectedLanguage}
-        setSelectedLanguage={setSelectedLanguage}
-        setCode={setCode}
-        availableLanguages={availableLanguages}
-        executeCode={executeCode}
-        isBlocked={isBlocked}
-        languageMap={languageMap}
-      />
-
-      {/* Main Content Area */}
-      <div className="flex flex-1 min-h-0 gap-4 p-4">
-        {/* Code Editor */}
-        <div className="flex-1 flex flex-col min-w-0">
-          <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
-            <CodeMirror
-              value={code}
-              height="100%"
-              theme={oneDark}
-              extensions={extensions}
-              onChange={onChange}
-              basicSetup={{
-                lineNumbers: true,
-                foldGutter: true,
-                dropCursor: false,
-                allowMultipleSelections: false,
-                indentOnInput: true,
-                bracketMatching: true,
-                closeBrackets: true,
-                autocompletion: true,
-                highlightSelectionMatches: false,
-              }}
-            />
+    <RealtimeContext.Provider
+      value={{ channel: channelRef.current, endSession }}
+    >
+      {sessionEnded && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/80 text-white z-[9999] backdrop-blur-sm">
+          <div className="text-center space-y-4 animate-fade-in">
+            <p className="text-2xl font-semibold">
+              The collaboration session has ended.
+            </p>
+            <p className="text-sm text-gray-300">
+              Redirecting you to the home page...
+            </p>
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Execution Results Sidebar */}
-      <CodeEditorSubmissionResults submissionHistory={submissionHistory} />
-    </div>
+      <div className="flex flex-col h-full">
+        {/* Header with room info and controls */}
+        <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
+          <CodeEditorHeader
+            sessionId={sessionId}
+            userId={userId || "unknown"}
+            isBlocked={isBlocked}
+          />
+        </div>
+
+        {/* Language Selection and Execute Controls */}
+        <CodeEditorLanguageSelectionAndRunButton
+          selectedLanguage={selectedLanguage}
+          setSelectedLanguage={setSelectedLanguage}
+          setCode={setCode}
+          availableLanguages={availableLanguages}
+          executeCode={executeCode}
+          isBlocked={isBlocked}
+          languageMap={languageMap}
+        />
+
+        {/* Main Content Area */}
+        <div className="flex flex-1 min-h-0 gap-4 p-4">
+          {/* Code Editor */}
+          <div className="flex-1 flex flex-col min-w-0">
+            <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
+              <CodeMirror
+                value={code}
+                height="100%"
+                theme={oneDark}
+                extensions={extensions}
+                onChange={onChange}
+                basicSetup={{
+                  lineNumbers: true,
+                  foldGutter: true,
+                  dropCursor: false,
+                  allowMultipleSelections: false,
+                  indentOnInput: true,
+                  bracketMatching: true,
+                  closeBrackets: true,
+                  autocompletion: true,
+                  highlightSelectionMatches: false,
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Execution Results Sidebar */}
+        <CodeEditorSubmissionResults submissionHistory={submissionHistory} />
+      </div>
+    </RealtimeContext.Provider>
   );
 }
 
