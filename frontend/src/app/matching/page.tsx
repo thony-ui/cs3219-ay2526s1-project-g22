@@ -46,14 +46,6 @@ export default function MatchingPage() {
   // Start/stop timer and manage WebSocket connection
   useEffect(() => {
     if (isMatching && userId) {
-      if (!prefs) {
-        setAlertInfo({
-          message: "Please set your preferences before starting matching.",
-          variant: "destructive",
-        });
-        setIsMatching(false);
-        return;
-      }
 
       setElapsed(0);
       intervalRef.current = setInterval(() => {
@@ -165,6 +157,15 @@ export default function MatchingPage() {
   }
 
   const handleToggleMatching = async () => {
+    if (!prefs) {
+      setAlertInfo({
+        message: "Please set your preferences before starting matching.",
+        variant: "destructive",
+      });
+      setIsMatching(false);
+      return;
+    }
+
     if (isSubmitting || !userId) return;
     setAlertInfo(null); // <-- Clear previous alerts on new action
     setIsSubmitting(true);

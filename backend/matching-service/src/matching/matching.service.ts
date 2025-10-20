@@ -55,6 +55,15 @@ export class MatchingService {
         }
     }
 
+    async addToQueueWithoutMatchMaking(userId: string) {
+        try {
+            await supabaseService.addUserToQueue(userId);
+        } catch (error) {
+            logger.error(`Failed to add user ${userId} to Supabase queue:`, error);
+            throw error; // rethrow the error after logging
+        }
+    }
+
 
     // Orchestrator function that attempts to match all users in the queue.
     // It iterates through the queue, finds the best possible pairs, creates matches,
@@ -240,8 +249,8 @@ export class MatchingService {
 
                 // revert the match creation in Supabase and re-add users to the queue
                 await supabaseService.deleteMatch(matchId);
-                await this.addToQueue(userId1);
-                await this.addToQueue(userId2);
+                await this.addToQueueWithoutMatchMaking(userId1);
+                await this.addToQueueWithoutMatchMaking(userId2);
 
                 return; // Stop execution
             }
