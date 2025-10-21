@@ -232,6 +232,7 @@ export default function CodeEditor({ sessionId, question }: Props) {
         const initial =
           typeof session.current_code === "string" ? session.current_code : "";
         await joinRealtimeChannel(initial);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         console.log(`Error: ${e.message || e}`);
       }
