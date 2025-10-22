@@ -3,23 +3,8 @@ import { matchingService } from './matching.service';
 import { logger } from '../utils/logger';
 
 class MatchingController {
-    // Get fuzzy matches for a user based on preferences and queue status
-    async getMatches(req: Request, res: Response) {
-        const userId = req.params.userId;
 
-        if (!userId) {
-            return res.status(400).json({ message: 'User ID is required.' });
-        }
-
-        try {
-            const matches = await matchingService.findFuzzyMatches(userId);
-            res.status(200).json(matches);
-        } catch (error) {
-            logger.error(`Error in getMatches for user ${userId}:`, error);
-            res.status(500).json({ message: 'Internal server error.' });
-        }
-    }
-
+    /* --- Match Making functions --- */
     // Get user preferences
     async getUserPreferences(req: Request, res: Response) {
         const userId = req.params.userId;
@@ -128,6 +113,42 @@ class MatchingController {
             res.status(200).json({ status });
         } catch (error) {
             logger.error(`Error in getMatchStatus for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    /* --- Match History functions --- */
+    // Get matching history for a user
+    async getMatchHistory(req: Request, res: Response) {
+        const userId = req.params.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        }
+
+        try {
+            const history = await matchingService.getMatchHistory(userId);
+            res.status(200).json(history);
+        } catch (error) {
+            logger.error(`Error in getMatchHistory for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    // Set matching history for a user
+    async setMatchHistory(req: Request, res: Response) {
+        const userId = req.params.userId;
+        const { matchId, sessionId } = req.body as { matchId: string; sessionId: string };
+
+        if (!userId || !matchId || !sessionId) {
+            return res.status(400).json({ message: 'User ID, match ID, and timestamp are required.' });
+        }
+
+        try {
+            await matchingService.setMatchHistory(userId, { matchId, sessionId });
+            res.status(200).json({ message: 'Match history updated for user.' });
+        } catch (error) {
+            logger.error(`Error in setMatchHistory for user ${userId}:`, error);
             res.status(500).json({ message: 'Internal server error.' });
         }
     }

@@ -23,7 +23,7 @@ wsInstance.app.ws('/ws/matching/:userId', (ws, req) => {
     // Register the client with our manager
     webSocketManager.addClient(userId, ws);
 
-    // You can send a welcome message if you want
+    // Send a welcome message
     ws.send(JSON.stringify({ type: 'CONNECTION_ESTABLISHED' }));
 });
 

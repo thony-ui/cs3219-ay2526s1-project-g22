@@ -3,9 +3,6 @@ import { matchingController } from './matching.controller';
 
 const router = Router();
 
-// Get matches for a user
-router.get('/matches/:userId', matchingController.getMatches);
-
 // Get user preferences
 router.get('/preferences/:userId', matchingController.getUserPreferences);
 
@@ -22,6 +19,9 @@ router.delete('/queue/:userId', matchingController.removeFromQueue);
 
 // Remove matches for all user involved (e.g., after a session ends)
 router.delete('/matches/:matchId', matchingController.clearMatches);
+
+// Get matching history for a user
+router.get('/history/:userId', matchingController.getMatchHistory);
 
 // Check if user is matched
 // router.get('/matches/:userId/status', matchingController.getMatchStatus);
