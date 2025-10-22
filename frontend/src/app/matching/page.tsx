@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/card";
 import { PreferenceModal } from "./components/PreferenceModal";
 import { useUser } from "@/contexts/user-context";
+import { Header } from "../../app/_components/Header";
 
 export default function MatchingPage() {
   const [isMatching, setIsMatching] = useState(false);
@@ -192,44 +193,18 @@ export default function MatchingPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
-      <nav className="border-b border-blue-800/30 bg-slate-900/50 backdrop-blur-sm">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
-            <div className="flex items-center">
-              <Code2 className="h-8 w-8 text-blue-400" />
-              <span className="ml-2 text-xl font-bold text-white">
-                CodeCollab
-              </span>
-            </div>
-            <div className="flex items-center space-x-6">
-              <Link
-                href="/"
-                className="text-blue-200 hover:text-white transition-colors"
-              >
-                Home
-              </Link>
-              <Link
-                href="/features"
-                className="text-blue-200 hover:text-white transition-colors"
-              >
-                Features
-              </Link>
-              <Link
-                href="/support"
-                className="text-blue-200 hover:text-white transition-colors"
-              >
-                Support
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
-
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex flex-col">
+    <Header />
       <main className="flex flex-1 flex-col justify-center px-4 pb-4 pt-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-3xl">
           <section>
-            <div className="mb-4 flex justify-end">
+            <div className="mb-4 flex justify-between">
+              <button
+                  onClick={()=> router.push("/")}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 transition-colors"
+              >
+                back
+              </button>
               <button
                 onClick={() => setOpenPrefs(true)}
                 className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 transition-colors"
