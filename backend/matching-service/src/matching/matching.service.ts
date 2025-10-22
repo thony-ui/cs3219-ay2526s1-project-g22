@@ -263,6 +263,10 @@ export class MatchingService {
                 collaborationUrl: `/room/${collaborationData.id}`
             };
 
+            // Step 5: save match history to supabase
+            await supabaseService.setMatchHistory(userId1, { matchId, sessionId: collaborationData.id });
+            await supabaseService.setMatchHistory(userId2, { matchId, sessionId: collaborationData.id });
+
             const message = {
                 type: 'MATCH_FOUND',
                 payload
@@ -275,6 +279,50 @@ export class MatchingService {
             // This outer catch block now handles critical, unexpected errors
             // from Supabase, Redis (queue), or WebSockets.
             logger.error(`A critical, unhandled error occurred in createMatch for users ${userId1}, ${userId2}:`, error);
+        }
+    }
+
+    async getMatchHistory(userId: string) {
+        try {
+            const historyArray = await supabaseService.getMatchHistory(userId);
+
+            if (!historyArray || historyArray.length === 0) {
+                return []; // no history
+            }
+
+            // Process all matches in parallel
+            const processedHistory = await Promise.all(historyArray.map(async (match) => {
+                const { session_id, match_id } = match;
+                const { interviewer_id, interviewee_id, status } = await supabaseService.getCollaborationHistory(session_id);
+
+                let oppositeName: string;
+                let role: string;
+
+                if (userId == interviewer_id) {
+                    oppositeName = await supabaseService.getUserName(interviewee_id);
+                    role = "interviewer";
+                } else {
+                    oppositeName = await supabaseService.getUserName(interviewer_id);
+                    role = "interviewee";
+                }
+
+                return { matchId: match_id, sessionId: session_id, role: role, status: status, oppositeName: oppositeName };
+            }));
+
+            return processedHistory;
+
+        } catch (error) {
+            logger.error(`Failed to get match history for user: ${userId}`, error);
+            throw error; // rethrow the error after logging
+        }
+    }
+
+    async setMatchHistory(userId: string, param2: { matchId: string; sessionId: string }) {
+        try {
+            await supabaseService.setMatchHistory(userId, param2);
+        } catch (error) {
+            logger.error(`Failed to set match history for user: ${userId}`, error);
+            throw error; // rethrow the error after logging
         }
     }
 }

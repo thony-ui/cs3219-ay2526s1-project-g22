@@ -199,6 +199,66 @@ class SupabaseService {
 
         return data;
     }
+
+    async setMatchHistory(userId: string, param2: { matchId: string; sessionId: string }) {
+        const { matchId, sessionId } = param2;
+        const { data, error } = await this.client
+            .from('match_history')
+            .insert([{ user_id: userId, match_id: matchId, session_id: sessionId }])
+            .select()
+            .single();
+
+        if (error) {
+            logger.error(`Error setting match history for user ${userId}:`, error.message);
+            throw error;
+        }
+
+        return data;
+    }
+
+    async getMatchHistory(userId: string) {
+        const { data, error } = await this.client
+            .from('match_history')
+            .select('session_id, match_id')
+            .eq('user_id', userId);
+
+        if (error) {
+            logger.error(`Error fetching match history for user ${userId}:`, error.message);
+            throw error;
+        }
+
+        return data;
+    }
+
+    async getCollaborationHistory(session_id: any) {
+        const { data, error } = await this.client
+            .from('sessions')
+            .select('interviewer_id, interviewee_id, status')
+            .eq('id', session_id)
+            .single();
+
+        if (error) {
+            logger.error(`Error fetching collaboration history for session ${session_id}:`, error.message);
+            throw error;
+        }
+
+        return data;
+    }
+
+    async getUserName(id: any) {
+        const { data, error } = await this.client
+            .from('users')
+            .select('name')
+            .eq('id', id)
+            .single();
+
+        if (error) {
+            logger.error(`Error fetching username for user ${id}:`, error.message);
+            throw error;
+        }
+
+        return data ? data.name : null;
+    }
 }
 
 export const supabaseService = new SupabaseService();

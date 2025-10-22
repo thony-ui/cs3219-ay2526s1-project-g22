@@ -10,7 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { User, LogOut, Code2 } from "lucide-react";
+import {User, LogOut, Code2, History} from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@/contexts/user-context";
 import { signOut } from "@/lib/auth";
@@ -81,6 +81,13 @@ export function Header() {
                     <span>Profile</span>
                   </Link>
                 </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/matchhistory" className="flex items-center">
+                    <History className="mr-2 h-4 w-4" />
+                    <span>Match History</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleLogout}>
                   <LogOut className="mr-2 h-4 w-4" />
                   <span>Log out</span>

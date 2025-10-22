@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Code2,
   Timer as TimerIcon,
   Shuffle,
   X,
-  AlertCircle,
+  AlertCircle, ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/card";
 import { PreferenceModal } from "./components/PreferenceModal";
 import { useUser } from "@/contexts/user-context";
-import { Header } from "../../app/_components/Header";
+import { Header } from "@/app/_components/Header";
 
 export default function MatchingPage() {
   const [isMatching, setIsMatching] = useState(false);
@@ -200,10 +200,11 @@ export default function MatchingPage() {
           <section>
             <div className="mb-4 flex justify-between">
               <button
-                  onClick={()=> router.push("/")}
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 transition-colors"
+                onClick={()=> router.back()}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors inline-flex items-center"
               >
-                back
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
               </button>
               <button
                 onClick={() => setOpenPrefs(true)}
