@@ -37,6 +37,14 @@ export class MatchingService {
     // of truth.
     async addToQueue(userId: string) {
         try {
+            // check if user is already in a session
+            const count = await supabaseService.checkExistingSession(userId);
+
+            if (count > 0) {
+                logger.info(`User ${userId} is already in an active session, cannot add to queue.`);
+                throw new Error('User is already in an active session.');
+            }
+
             await supabaseService.addUserToQueue(userId);
         } catch (error) {
             logger.error(`Failed to add user ${userId} to Supabase queue:`, error);

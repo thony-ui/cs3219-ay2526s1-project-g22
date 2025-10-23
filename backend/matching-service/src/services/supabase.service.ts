@@ -171,6 +171,7 @@ class SupabaseService {
         return data;
     }
 
+    // Retrieve the current matchID for a user
     async getMatchStatus(userId: string) {
         const { data, error } = await this.client
             .from('users')
@@ -214,6 +215,24 @@ class SupabaseService {
         }
 
         return data;
+    }
+
+    async checkExistingSession(userId: string) {
+        const { count, error } = await this.client
+          .from('sessions')
+          .select('*', { count: 'exact', head: true })
+          .eq('status', 'active')
+          .or(
+            `interviewer_id.eq.${userId},` +
+            `interviewee_id.eq.${userId}`
+          );
+
+        if (error) {
+            logger.error(`Error checking existing session for user ${userId}:`, error.message);
+            throw error;
+        }
+
+        return count;
     }
 
     async getMatchHistory(userId: string) {

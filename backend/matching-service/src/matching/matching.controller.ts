@@ -64,6 +64,10 @@ class MatchingController {
             await matchingService.addToQueue(userId);
             res.status(200).json({ message: 'User added to matching queue.' });
         } catch (error) {
+            if (error instanceof Error && error.message === 'User is already in an active session.') {
+                return res.status(400).json({ message: 'You are already in an active session.' });
+            }
+
             logger.error(`Error in addUserToQueue for user ${userId}:`, error);
             res.status(500).json({ message: 'Internal server error.' });
         }
