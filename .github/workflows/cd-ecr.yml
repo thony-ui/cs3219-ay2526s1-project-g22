@@ -61,7 +61,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./${{ matrix.service.folder }}
-          platforms: linux/arm64
+          platforms: linux/amd64
           target: production
           push: true
           tags: |
