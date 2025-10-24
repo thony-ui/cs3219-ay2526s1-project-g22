@@ -6,8 +6,8 @@ export async function createSession(
   interviewee_id: string,
   question_id: string,
   initial_code: string = ""
-): Promise<Tables<'sessions'>> {
-  const newSession: TablesInsert<'sessions'> = {
+): Promise<Tables<"sessions">> {
+  const newSession: TablesInsert<"sessions"> = {
     interviewer_id,
     interviewee_id,
     question_id,
@@ -18,7 +18,7 @@ export async function createSession(
     .from("sessions")
     .insert(newSession)
     .select()
-    .single<Tables<'sessions'>>();
+    .single<Tables<"sessions">>();
 
   if (error) {
     throw new Error(error.message);
@@ -27,12 +27,12 @@ export async function createSession(
 }
 
 // retrieve the room session by session id
-export async function getSessionById(id: string): Promise<Tables<'sessions'>> {
+export async function getSessionById(id: string): Promise<Tables<"sessions">> {
   const { data, error } = await supabase
     .from("sessions")
     .select("*")
     .eq("id", id)
-    .single<Tables<'sessions'>>();
+    .single<Tables<"sessions">>();
 
   if (error) {
     throw new Error("Session not found");
@@ -44,15 +44,15 @@ export async function getSessionById(id: string): Promise<Tables<'sessions'>> {
 export async function updateSessionSnapshot(
   id: string,
   code: string
-): Promise<Tables<'sessions'>> {
-  const update: TablesUpdate<'sessions'> = { current_code: code };
+): Promise<Tables<"sessions">> {
+  const update: TablesUpdate<"sessions"> = { current_code: code };
 
   const { data, error } = await supabase
     .from("sessions")
     .update(update)
     .eq("id", id)
     .select()
-    .single<Tables<'sessions'>>();
+    .single<Tables<"sessions">>();
 
   if (error) {
     throw new Error(error.message);
@@ -61,15 +61,15 @@ export async function updateSessionSnapshot(
 }
 
 // mark session as completed
-export async function completeSession(id: string): Promise<Tables<'sessions'>> {
-  const update: TablesUpdate<'sessions'> = { status: "completed" };
+export async function completeSession(id: string): Promise<Tables<"sessions">> {
+  const update: TablesUpdate<"sessions"> = { status: "completed" };
 
   const { data, error } = await supabase
     .from("sessions")
     .update(update)
     .eq("id", id)
     .select()
-    .single<Tables<'sessions'>>();
+    .single<Tables<"sessions">>();
 
   if (error) {
     throw new Error(error.message);
