@@ -40,6 +40,11 @@ export class MatchingService {
             // check if user is already in a session
             const count = await supabaseService.checkExistingSession(userId);
 
+            if (count == null) {
+                logger.error(`Failed to verify existing session for user ${userId}.`);
+                throw new Error('Failed to verify existing session.');
+            }
+
             if (count > 0) {
                 logger.info(`User ${userId} is already in an active session, cannot add to queue.`);
                 throw new Error('User is already in an active session.');
@@ -54,6 +59,7 @@ export class MatchingService {
         this.processMatchingQueue();
     }
 
+    // --- Remove User from Queue ---
     async removeFromQueue(userId: string) {
         try {
             await supabaseService.removeUserFromQueue(userId);
@@ -62,16 +68,6 @@ export class MatchingService {
             throw error; // rethrow the error after logging
         }
     }
-
-    async addToQueueWithoutMatchMaking(userId: string) {
-        try {
-            await supabaseService.addUserToQueue(userId);
-        } catch (error) {
-            logger.error(`Failed to add user ${userId} to Supabase queue:`, error);
-            throw error; // rethrow the error after logging
-        }
-    }
-
 
     // Orchestrator function that attempts to match all users in the queue.
     // It iterates through the queue, finds the best possible pairs, creates matches,
@@ -197,44 +193,19 @@ export class MatchingService {
         }
     }
 
-    async getMatchStatus(userId: string) {
-        try {
-            const matchStatus = await redisService.getMatchFromCache(userId);
-            if (!matchStatus) {
-                // try to find in supabase
-                const matchFromSupabase = await supabaseService.getMatchStatus(userId);
-                if (matchFromSupabase && matchFromSupabase.match_id) {
-                    // cache the match status
-                    await redisService.addMatchToCache(
-                        matchFromSupabase.user1_id,
-                        matchFromSupabase.user2_id,
-                        matchFromSupabase.match_id
-                    );
-                    return matchFromSupabase.match_id;
-                }
-                return null;
-            }
-            return matchStatus;
-        } catch (error) {
-            logger.error(`Failed to get match status for user: ${userId}`, error);
-            throw error; // rethrow the error after logging
-        }
-    }
-
-
+    // --- Propose Match to Two Users ---
     async proposeMatch(userId1: string, userId2: string): Promise<void> {
         const proposalId = uuidv4();
         
         try {
-            // Step 1: Create the proposal in Supabase
+            // Create the proposal in Supabase
             await supabaseService.createMatchProposal(proposalId, userId1, userId2);
     
-            // Step 2: Update user statuses to take them out of the queue
-            // This removes them from the 'in_queue' pool
+            // Update user statuses to take them out of the queue
             await supabaseService.updateUserStatus(userId1, false);
             await supabaseService.updateUserStatus(userId2, false);
     
-            // Step 3: Notify both users of the proposal
+            // Notify both users of the proposal
             const [rejectionRate1, rejectionRate2] = await Promise.all([
                 supabaseService.getRejectionRate(userId1),
                 supabaseService.getRejectionRate(userId2)
@@ -260,7 +231,7 @@ export class MatchingService {
     
         } catch (error) {
             logger.error(`Error creating proposal for ${userId1} and ${userId2}:`, error);
-            // If proposal fails, put users back in queue (or handle error)
+            // If proposal fails, put users back in queue
             await supabaseService.updateUserStatus(userId1, true);
             await supabaseService.updateUserStatus(userId2, true);
         }
@@ -292,33 +263,32 @@ export class MatchingService {
     async rejectMatch(proposalId: string, userId: string): Promise<void> {
         logger.info(`User ${userId} rejected proposal ${proposalId}.`);
         
-        // 1. Get proposal details BEFORE deleting
+        // Get proposal details BEFORE deleting
         const proposal = await supabaseService.getProposal(proposalId);
         if (!proposal) return;
     
         const otherUserId = proposal.user1_id === userId ? proposal.user2_id : proposal.user1_id;
     
-        // 2. Log negative feedback
+        // Log negative feedback
         await supabaseService.logFeedback(userId, otherUserId, 'rejected');
         
-        // 3. Notify the other user that the proposal was rejected
+        // Notify the other user that the proposal was rejected
         const message = { type: 'PROPOSAL_REJECTED' };
         webSocketManager.sendMessage(otherUserId, message);
         
-        // 4. Delete the proposal
+        // Delete the proposal
         await supabaseService.deleteProposal(proposalId);
 
         // remove both users from the queue and re-add them to reset their status
         await supabaseService.removeUserFromQueue(userId);
         await supabaseService.removeUserFromQueue(otherUserId);
     }
-    
-    // This is your OLD `createMatch` function, renamed and re-purposed
+
     async finalizeMatch(userId1: string, userId2: string, proposalId: string): Promise<void> {
         const matchId = uuidv4();
     
         try {
-            // Step 1: Update the primary database
+            // Update the primary database
             const supabaseRes = await supabaseService.handleNewMatch(userId1, userId2, matchId);
             if (!supabaseRes.success) {
                 logger.error(`Failed to handle new match in Supabase for ${userId1} and ${userId2}:`, supabaseRes.message);
@@ -326,13 +296,13 @@ export class MatchingService {
             }
             logger.info(`Successfully saved match ${matchId} to Supabase.`);
 
-            // Step 2: Remove users from the queue
+            // Remove users from the queue
             await this.removeFromQueue(userId1);
             await this.removeFromQueue(userId2);
 
             let collaborationData: CollaborationData;
             try {
-                // Step 3: Create the collaboration room. This is the part that can throw an ApiError.
+                // Create the collaboration room. This is the part that can throw an ApiError.
                 collaborationData = await createCollaboration(userId1, userId2);
                 logger.info(`Successfully created collaboration room ${collaborationData.id} for match ${matchId}.`);
 
@@ -350,10 +320,10 @@ export class MatchingService {
                 await supabaseService.updateUserStatus(userId1, true);
                 await supabaseService.updateUserStatus(userId2, true);
     
-                return; // Stop execution
+                return;
             }
     
-            // Step 3: Notify users of SUCCESS
+            // Notify users of SUCCESS
             const payload = {
                 matchId,
                 users: [userId1, userId2],
@@ -364,11 +334,11 @@ export class MatchingService {
             webSocketManager.sendMessage(userId1, message);
             webSocketManager.sendMessage(userId2, message);
     
-            // Step 4: Save history
+            // Save history
             await supabaseService.setMatchHistory(userId1, { matchId, sessionId: collaborationData.id });
             await supabaseService.setMatchHistory(userId2, { matchId, sessionId: collaborationData.id });
     
-            // Step 5: Clean up the proposal
+            // Clean up the proposal
             await supabaseService.deleteProposal(proposalId);
     
         } catch (error) {
