@@ -31,7 +31,7 @@ const services: Record<string, string> = {
   // add more here, e.g. "order-service": process.env.ORDER_SERVICE_URL
   "question-service":
     process.env.QUESTION_SERVICE_URL || "http://localhost:6002",
-    "matching-service":
+  "matching-service":
     process.env.MATCHING_SERVICE_URL || "http://localhost:6006",
 };
 
@@ -71,7 +71,7 @@ app.use(
   })
 );
 
-// Fallback for unknown routes
+// Fallback for unknown routes, test deployment
 app.use((_req, res) => {
   res.status(404).send("API Gateway: Route not found");
 });
