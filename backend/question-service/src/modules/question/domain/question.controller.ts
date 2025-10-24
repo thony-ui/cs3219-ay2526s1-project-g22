@@ -5,6 +5,7 @@ import {
   findAllQuestions,
   findRandomQuestion,
   findQuestionById,
+  findAllTopics,
 } from "./question.repository";
 import logger from "../../../logger";
 
@@ -90,5 +91,17 @@ export const getQuestionById = async (req: Request, res: Response) => {
   } catch (err) {
     logger.error(`Error fetching question by id: ${err}`);
     res.status(500).json({ error: "Failed to fetch question" });
+  }
+};
+
+export const getAllTopics = async (req: Request, res: Response) => {
+  try {
+    logger.info(`Received GET /api/questions/topics`);
+    const topics = await findAllTopics();
+    logger.info(`Fetched ${topics.length} unique topics`);
+    res.json(topics);
+  } catch (err) {
+    logger.error(`Error fetching topics: ${err}`);
+    res.status(500).json({ error: "Failed to fetch topics" });
   }
 };
