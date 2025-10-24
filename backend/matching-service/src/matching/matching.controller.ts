@@ -156,6 +156,32 @@ class MatchingController {
             res.status(500).json({ message: 'Internal server error.' });
         }
     }
+
+    async acceptMatch(req: Request, res: Response) {
+        const { proposalId } = req.params;
+        const userId = req.user.id; // Assuming auth middleware
+        
+        try {
+            await matchingService.acceptMatch(proposalId, userId);
+            res.status(200).json({ message: 'Acceptance registered.' });
+        } catch (error) {
+            logger.error(`Error in acceptMatch for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    async rejectMatch(req: Request, res: Response) {
+        const { proposalId } = req.params;
+        const userId = req.user.id;
+
+        try {
+            await matchingService.rejectMatch(proposalId, userId);
+            res.status(200).json({ message: 'Rejection registered.' });
+        } catch (error) {
+            logger.error(`Error in rejectMatch for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
 }
 
 export const matchingController = new MatchingController();

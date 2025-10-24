@@ -99,8 +99,8 @@ export class MatchingService {
             if (bestMatch) {
                 logger.info(`Match found: ${currentUser} and ${bestMatch}.`);
 
-                // Create the match
-                await this.createMatch(currentUser, bestMatch);
+                // Propose the match
+                await this.proposeMatch(currentUser, bestMatch);
 
                 // Remove the matched partner from the set for the next iteration
                 usersToMatch.delete(bestMatch);
@@ -222,11 +222,101 @@ export class MatchingService {
     }
 
 
-    // Finalizes a match between two users. This function handles all side effects:
-    // creating a database record, removing users from the queue, and sending WebSocket notifications.
-    async createMatch(userId1: string, userId2: string): Promise<void> {
-        const matchId = uuidv4();
+    async proposeMatch(userId1: string, userId2: string): Promise<void> {
+        const proposalId = uuidv4();
+        
+        try {
+            // Step 1: Create the proposal in Supabase
+            await supabaseService.createMatchProposal(proposalId, userId1, userId2);
+    
+            // Step 2: Update user statuses to take them out of the queue
+            // This removes them from the 'in_queue' pool
+            await supabaseService.updateUserStatus(userId1, false);
+            await supabaseService.updateUserStatus(userId2, false);
+    
+            // Step 3: Notify both users of the proposal
+            const [rejectionRate1, rejectionRate2] = await Promise.all([
+                supabaseService.getRejectionRate(userId1),
+                supabaseService.getRejectionRate(userId2)
+            ]);
 
+            const message1 = {
+                type: 'MATCH_PROPOSED',
+                payload: {
+                    proposalId,
+                    opponentRejectionRate: rejectionRate2,
+                }
+            };
+            webSocketManager.sendMessage(userId1, message1);
+
+            const message2 = {
+                type: 'MATCH_PROPOSED',
+                payload: {
+                    proposalId,
+                    opponentRejectionRate: rejectionRate1,
+                }
+            };
+            webSocketManager.sendMessage(userId2, message2);
+    
+        } catch (error) {
+            logger.error(`Error creating proposal for ${userId1} and ${userId2}:`, error);
+            // If proposal fails, put users back in queue (or handle error)
+            await supabaseService.updateUserStatus(userId1, true);
+            await supabaseService.updateUserStatus(userId2, true);
+        }
+    }
+
+    async acceptMatch(proposalId: string, userId: string): Promise<void> {
+        const proposal = await supabaseService.updateProposalStatus(proposalId, userId, 'accepted');
+    
+        if (!proposal) return; // Proposal not found or already handled
+    
+        const otherUserId = proposal.user1_id === userId ? proposal.user2_id : proposal.user1_id;
+        const otherUserStatus = proposal.user1_id === userId ? proposal.user2_status : proposal.user1_status;
+
+        if (otherUserStatus === 'accepted') {
+            logger.info(`Match accepted by both users for proposal ${proposalId}. Finalizing...`);
+
+            await supabaseService.logFeedback(userId, otherUserId, 'accepted');
+            await supabaseService.logFeedback(otherUserId, userId, 'accepted');
+            await supabaseService.removeUserFromQueue(userId);
+            await supabaseService.removeUserFromQueue(otherUserId);
+            await this.finalizeMatch(userId, otherUserId, proposalId);
+        } else {
+            // This user accepted, but the other is still pending.
+            // We just wait. The UI will show a "waiting" state.
+            logger.info(`User ${userId} accepted proposal ${proposalId}, waiting for partner.`);
+        }
+    }
+    
+    async rejectMatch(proposalId: string, userId: string): Promise<void> {
+        logger.info(`User ${userId} rejected proposal ${proposalId}.`);
+        
+        // 1. Get proposal details BEFORE deleting
+        const proposal = await supabaseService.getProposal(proposalId);
+        if (!proposal) return;
+    
+        const otherUserId = proposal.user1_id === userId ? proposal.user2_id : proposal.user1_id;
+    
+        // 2. Log negative feedback
+        await supabaseService.logFeedback(userId, otherUserId, 'rejected');
+        
+        // 3. Notify the other user that the proposal was rejected
+        const message = { type: 'PROPOSAL_REJECTED' };
+        webSocketManager.sendMessage(otherUserId, message);
+        
+        // 4. Delete the proposal
+        await supabaseService.deleteProposal(proposalId);
+
+        // remove both users from the queue and re-add them to reset their status
+        await supabaseService.removeUserFromQueue(userId);
+        await supabaseService.removeUserFromQueue(otherUserId);
+    }
+    
+    // This is your OLD `createMatch` function, renamed and re-purposed
+    async finalizeMatch(userId1: string, userId2: string, proposalId: string): Promise<void> {
+        const matchId = uuidv4();
+    
         try {
             // Step 1: Update the primary database
             const supabaseRes = await supabaseService.handleNewMatch(userId1, userId2, matchId);
@@ -257,36 +347,37 @@ export class MatchingService {
 
                 // revert the match creation in Supabase and re-add users to the queue
                 await supabaseService.deleteMatch(matchId);
-                await this.addToQueueWithoutMatchMaking(userId1);
-                await this.addToQueueWithoutMatchMaking(userId2);
-
+                await supabaseService.updateUserStatus(userId1, true);
+                await supabaseService.updateUserStatus(userId2, true);
+    
                 return; // Stop execution
             }
-
-            // Step 4: If we get here, the room was created successfully. Notify users.
+    
+            // Step 3: Notify users of SUCCESS
             const payload = {
                 matchId,
                 users: [userId1, userId2],
-                // `collaborationData` is guaranteed to be defined here
                 collaborationUrl: `/room/${collaborationData.id}`
             };
-
-            // Step 5: save match history to supabase
-            await supabaseService.setMatchHistory(userId1, { matchId, sessionId: collaborationData.id });
-            await supabaseService.setMatchHistory(userId2, { matchId, sessionId: collaborationData.id });
-
-            const message = {
-                type: 'MATCH_FOUND',
-                payload
-            };
-
+            
+            const message = { type: 'MATCH_FOUND', payload };
             webSocketManager.sendMessage(userId1, message);
             webSocketManager.sendMessage(userId2, message);
-
+    
+            // Step 4: Save history
+            await supabaseService.setMatchHistory(userId1, { matchId, sessionId: collaborationData.id });
+            await supabaseService.setMatchHistory(userId2, { matchId, sessionId: collaborationData.id });
+    
+            // Step 5: Clean up the proposal
+            await supabaseService.deleteProposal(proposalId);
+    
         } catch (error) {
             // This outer catch block now handles critical, unexpected errors
             // from Supabase, Redis (queue), or WebSockets.
-            logger.error(`A critical, unhandled error occurred in createMatch for users ${userId1}, ${userId2}:`, error);
+            logger.error(`A critical, unhandled error occurred in finalizeMatch for users ${userId1}, ${userId2}:`, error);
+            // If finalization fails, put users back in queue
+            await supabaseService.updateUserStatus(userId1, true);
+            await supabaseService.updateUserStatus(userId2, true);
         }
     }
 
