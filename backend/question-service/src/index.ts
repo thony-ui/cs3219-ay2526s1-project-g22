@@ -20,8 +20,7 @@ app.use(
 
 app.use(bodyParser.json());
 
-// Register question routes (mount under /api to match other services)
-app.use("/api/questions", questionRoutes);
+app.use("/questions", questionRoutes);
 
 // Wrap startup in async function
 async function startServer() {
