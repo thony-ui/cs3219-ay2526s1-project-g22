@@ -20,7 +20,6 @@ app.use(
 
 app.use(bodyParser.json());
 
-// Register question routes
 app.use("/questions", questionRoutes);
 
 // Wrap startup in async function

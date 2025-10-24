@@ -63,3 +63,38 @@ export async function findQuestionById(id: string): Promise<Question | null> {
     .collection<Question>("questions")
     .findOne({ _id: new ObjectId(id) as any });
 }
+
+export async function findAllTopics(): Promise<string[]> {
+  const db = getDb();
+
+  // Get distinct values from both `topics` and `tags` fields to be robust
+  const topicsFromField = (await db
+    .collection("questions")
+    .distinct("topics")) as any[];
+  const tagsFromField = (await db
+    .collection("questions")
+    .distinct("tags")) as any[];
+
+  const set = new Set<string>();
+
+  // Helper to add values (handle nulls and arrays safely)
+  const addValues = (arr: any[]) => {
+    if (!arr || !Array.isArray(arr)) return;
+    for (const v of arr) {
+      if (v == null) continue;
+      // If distinct returned nested arrays for some reason, flatten
+      if (Array.isArray(v)) {
+        for (const inner of v) {
+          if (inner != null) set.add(String(inner));
+        }
+      } else {
+        set.add(String(v));
+      }
+    }
+  };
+
+  addValues(topicsFromField);
+  addValues(tagsFromField);
+
+  return Array.from(set);
+}
