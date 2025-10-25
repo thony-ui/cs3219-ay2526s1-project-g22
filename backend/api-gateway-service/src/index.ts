@@ -71,6 +71,9 @@ app.use(
   })
 );
 
+app.get("/health", (_req, res) => {
+  res.status(200).json({ status: "ok" });
+});
 // Fallback for unknown routes, test deployment
 app.use((_req, res) => {
   res.status(404).send("API Gateway: Route not found");
