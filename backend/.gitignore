@@ -18,5 +18,3 @@ export-all-questions.js
 export-id-content.js
 questions-id-content.json
 all-questions.json
-
-Dockerrun.aws.json
