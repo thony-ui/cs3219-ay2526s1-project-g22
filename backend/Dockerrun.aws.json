@@ -93,7 +93,7 @@
     {
       "name": "piston",
       "image": "ghcr.io/engineer-man/piston",
-      "essential": true,
+      "essential": false,
       "memoryReservation": 512,
       "portMappings": [{ "containerPort": 2000, "hostPort": 2000 }],
       "logConfiguration": {
