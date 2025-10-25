@@ -6,6 +6,7 @@ import {
   findAllQuestions,
   findRandomQuestion,
   findQuestionById,
+  findAllTopics,
 } from "./question.repository";
 
 export async function getQuestionsService(
@@ -47,4 +48,8 @@ export async function getQuestionByIdService(
   id: string
 ): Promise<Question | null> {
   return await findQuestionById(id);
+}
+
+export async function getAllTopicsService(): Promise<string[]> {
+  return await findAllTopics();
 }

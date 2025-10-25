@@ -50,9 +50,9 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
       try {
         console.log("load start", { open, userId });
         const res = await fetch(
-          `http://localhost:8000/api/matching-service/preferences/${encodeURIComponent(
-            userId
-          )}`
+          `${
+            process.env.NEXT_PUBLIC_API_URL
+          }/api/matching-service/preferences/${encodeURIComponent(userId)}`
         );
         console.log("load status", res.status);
         if (res.status === 404) {
@@ -105,9 +105,9 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
     setError(null);
     try {
       const res = await fetch(
-        `http://localhost:8000/api/matching-service/preferences/${encodeURIComponent(
-          userId
-        )}`,
+        `${
+          process.env.NEXT_PUBLIC_API_URL
+        }/api/matching-service/preferences/${encodeURIComponent(userId)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
