@@ -1,0 +1,40 @@
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+      "name": "api-gateway-service",
+      "image": "820976530674.dkr.ecr.ap-southeast-1.amazonaws.com/api-gateway:latest",
+      "essential": true,
+      "memoryReservation": 128,
+      "portMappings": [{ "containerPort": 8000, "hostPort": 80 }],
+      "links": ["user-service", "collaboration-service"],
+      "dependsOn": [
+        { "containerName": "user-service", "condition": "START" },
+        { "containerName": "collaboration-service", "condition": "START" }
+      ],
+
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/eb/peer-prep",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "api-gateway"
+        }
+      }
+    },
+    {
+      "name": "user-service",
+      "image": "820976530674.dkr.ecr.ap-southeast-1.amazonaws.com/user-service:latest",
+      "essential": true,
+      "memory": 512,
+      "portMappings": [{ "containerPort": 6001, "hostPort": 6001 }]
+    },
+    {
+      "name": "collaboration-service",
+      "image": "820976530674.dkr.ecr.ap-southeast-1.amazonaws.com/collaboration-service:latest",
+      "essential": true,
+      "memoryReservation": 128,
+      "portMappings": [{ "containerPort": 6004, "hostPort": 6004 }]
+    }
+  ]
+}
