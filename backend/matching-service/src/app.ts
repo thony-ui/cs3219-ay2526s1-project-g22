@@ -21,9 +21,9 @@ wsInstance.app.ws("/ws/matching/:userId", (ws, req) => {
 
   // Register the client with our manager
   webSocketManager.addClient(userId, ws);
+    // Send a welcome message
+    ws.send(JSON.stringify({ type: 'CONNECTION_ESTABLISHED' }));
 
-  // You can send a welcome message if you want
-  ws.send(JSON.stringify({ type: "CONNECTION_ESTABLISHED" }));
 });
 
 // CORS: allow your frontend origin

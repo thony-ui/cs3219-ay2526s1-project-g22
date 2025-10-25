@@ -1,10 +1,8 @@
 import { Router } from 'express';
 import { matchingController } from './matching.controller';
+import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
-
-// Get matches for a user
-router.get('/matches/:userId', matchingController.getMatches);
 
 // Get user preferences
 router.get('/preferences/:userId', matchingController.getUserPreferences);
@@ -23,6 +21,13 @@ router.delete('/queue/:userId', matchingController.removeFromQueue);
 // Remove matches for all user involved (e.g., after a session ends)
 router.delete('/matches/:matchId', matchingController.clearMatches);
 
-// Check if user is matched
-// router.get('/matches/:userId/status', matchingController.getMatchStatus);
+// Get matching history for a user
+router.get('/history/:userId', matchingController.getMatchHistory);
+
+// User accepts a proposal
+router.post('/proposals/:proposalId/accept', authMiddleware, matchingController.acceptMatch);
+
+// User rejects a proposal
+router.post('/proposals/:proposalId/reject', authMiddleware, matchingController.rejectMatch);
+
 export default router;

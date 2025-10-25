@@ -21,6 +21,7 @@ class MatchingController {
         }
     }
 
+    /* --- Match Making functions --- */
     // Get user preferences
     async getUserPreferences(req: Request, res: Response) {
         const userId = req.params.userId;
@@ -80,6 +81,10 @@ class MatchingController {
             await matchingService.addToQueue(userId);
             res.status(200).json({ message: 'User added to matching queue.' });
         } catch (error) {
+            if (error instanceof Error && error.message === 'User is already in an active session.') {
+                return res.status(400).json({ message: 'You are already in an active session.' });
+            }
+
             logger.error(`Error in addUserToQueue for user ${userId}:`, error);
             res.status(500).json({ message: 'Internal server error.' });
         }
@@ -129,6 +134,68 @@ class MatchingController {
             res.status(200).json({ status });
         } catch (error) {
             logger.error(`Error in getMatchStatus for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    /* --- Match History functions --- */
+    // Get matching history for a user
+    async getMatchHistory(req: Request, res: Response) {
+        const userId = req.params.userId;
+
+        if (!userId) {
+            return res.status(400).json({ message: 'User ID is required.' });
+        }
+
+        try {
+            const history = await matchingService.getMatchHistory(userId);
+            res.status(200).json(history);
+        } catch (error) {
+            logger.error(`Error in getMatchHistory for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    // Set matching history for a user
+    async setMatchHistory(req: Request, res: Response) {
+        const userId = req.params.userId;
+        const { matchId, sessionId } = req.body as { matchId: string; sessionId: string };
+
+        if (!userId || !matchId || !sessionId) {
+            return res.status(400).json({ message: 'User ID, match ID, and timestamp are required.' });
+        }
+
+        try {
+            await matchingService.setMatchHistory(userId, { matchId, sessionId });
+            res.status(200).json({ message: 'Match history updated for user.' });
+        } catch (error) {
+            logger.error(`Error in setMatchHistory for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    async acceptMatch(req: Request, res: Response) {
+        const { proposalId } = req.params;
+        const userId = req.user.id; // Assuming auth middleware
+        
+        try {
+            await matchingService.acceptMatch(proposalId, userId);
+            res.status(200).json({ message: 'Acceptance registered.' });
+        } catch (error) {
+            logger.error(`Error in acceptMatch for user ${userId}:`, error);
+            res.status(500).json({ message: 'Internal server error.' });
+        }
+    }
+
+    async rejectMatch(req: Request, res: Response) {
+        const { proposalId } = req.params;
+        const userId = req.user.id;
+
+        try {
+            await matchingService.rejectMatch(proposalId, userId);
+            res.status(200).json({ message: 'Rejection registered.' });
+        } catch (error) {
+            logger.error(`Error in rejectMatch for user ${userId}:`, error);
             res.status(500).json({ message: 'Internal server error.' });
         }
     }
