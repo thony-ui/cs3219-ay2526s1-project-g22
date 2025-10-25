@@ -46,7 +46,6 @@ export default function MatchingPage() {
   // Start/stop timer and manage WebSocket connection
   useEffect(() => {
     if (isMatching && userId) {
-
       setElapsed(0);
       intervalRef.current = setInterval(() => {
         setElapsed((prev) => prev + 1);
@@ -116,9 +115,9 @@ export default function MatchingPage() {
 
   async function addToQueue(userId: string) {
     const res = await fetch(
-      `http://localhost:8000/api/matching-service/queue/${encodeURIComponent(
-        userId
-      )}`,
+      `${
+        process.env.NEXT_PUBLIC_API_URL
+      }/api/matching-service/queue/${encodeURIComponent(userId)}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -133,9 +132,9 @@ export default function MatchingPage() {
 
   async function removeFromQueue(userId: string) {
     const res = await fetch(
-      `http://localhost:8000/api/matching-service/queue/${encodeURIComponent(
-        userId
-      )}`,
+      `${
+        process.env.NEXT_PUBLIC_API_URL
+      }/api/matching-service/queue/${encodeURIComponent(userId)}`,
       {
         method: "DELETE",
       }
