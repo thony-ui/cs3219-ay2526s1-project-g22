@@ -302,7 +302,7 @@ export default function MatchingPage() {
   <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex flex-col">
     <Header />
       <main className="flex flex-1 flex-col justify-center px-4 pb-4 pt-4 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-3xl">
+        <div className="mx-auto w-full max-w-lg">
           <section>
             {!proposal && (
             <div className="mb-4 flex justify-between">
@@ -340,29 +340,52 @@ export default function MatchingPage() {
                 </button>
               </Alert>
             )}
+
             {proposal ? (
-              <Card className="w-full bg-green-800/50 border-green-700/30">
+              <Card className="bg-green-800/50 border-green-700/30 backdrop-blur-sm">
                 <CardHeader>
-                  <CardTitle className="text-white">Match Proposal Found!</CardTitle>
-                  <CardDescription className="text-green-200 pt-2">
-                    Your potential partner is rejected in {Math.round((proposal.opponentRejectionRate || 0) * 100)}% of their matches.
-                  </CardDescription>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <div className="rounded-full bg-green-600/20 p-2">
+                        <TimerIcon className="h-6 w-6 text-green-400" />
+                      </div>
+                      <CardTitle className="text-white">Match Proposal</CardTitle>
+                    </div>
+                    <span className="text-sm font-medium text-green-300">
+                      Action Required
+                    </span>
+                  </div>
                 </CardHeader>
-                <CardContent className="flex justify-around pt-4">
-                  <Button
-                    className="bg-green-600 hover:bg-green-700"
-                    onClick={handleAccept}
-                    disabled={isSubmitting || matchAccepted}
-                  >
-                    Accept
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    onClick={handleReject}
-                    disabled={isSubmitting || matchAccepted}
-                  >
-                    Reject
-                  </Button>
+                <CardContent>
+                  <div className="mb-8 flex h-[104px] items-center justify-center">
+                    <p className="text-center text-lg text-green-200">
+                      Your potential partner is rejected in {Math.round((proposal.opponentRejectionRate || 0) * 100)}% of their matches.
+                    </p>
+                  </div>
+
+                  <div className="flex justify-center gap-4">
+                    <Button
+                      size="lg"
+                      className="bg-green-600 hover:bg-green-700 text-white px-8 py-6 text-lg"
+                      onClick={handleAccept}
+                      disabled={isSubmitting || matchAccepted}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      size="lg"
+                      variant="destructive"
+                      className="px-8 py-6 text-lg"
+                      onClick={handleReject}
+                      disabled={isSubmitting || matchAccepted}
+                    >
+                      Reject
+                    </Button>
+                  </div>
+
+                  <p className="mt-6 text-center text-sm text-green-300">
+                    If you reject, you can start a new search.
+                  </p>
                 </CardContent>
               </Card>
             ) : (
