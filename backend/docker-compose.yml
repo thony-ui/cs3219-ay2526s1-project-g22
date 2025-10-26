@@ -88,6 +88,19 @@ services:
       - .env
     networks:
       - shared-network
+  chat-service:
+    build:
+      context: ./chat-service
+      dockerfile: ./Dockerfile
+      target: development
+    ports:
+      - "6010:6010"
+    volumes:
+      - ./chat-service/src:/app/src
+    env_file:
+      - .env
+    networks:
+      - shared-network
 
 networks:
   shared-network:
