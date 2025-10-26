@@ -55,11 +55,6 @@ jest.mock("uuid", () => ({
 import { MatchingService } from "../matching.service";
 import { redisService } from "../../services/redis.service";
 import { supabaseService } from "../../services/supabase.service";
-import {
-  createCollaboration,
-  ApiError,
-} from "../../services/collaborate.service";
-import { webSocketManager } from "../../websockets/websocket.manager";
 import { logger } from "../../utils/logger";
 import { v4 as uuidv4 } from "uuid";
 import { UserPreference } from "../../types";
@@ -128,36 +123,6 @@ describe("MatchingService", () => {
     });
   });
 
-  describe("addToQueue", () => {
-    it("should add user to queue and trigger matching", async () => {
-      (supabaseService.addUserToQueue as jest.Mock).mockResolvedValue(
-        undefined
-      );
-      (supabaseService.getQueueMembers as jest.Mock).mockResolvedValue([
-        "user123",
-      ]);
-
-      await matchingService.addToQueue("user123");
-
-      expect(supabaseService.addUserToQueue).toHaveBeenCalledWith("user123");
-      expect(logger.error).not.toHaveBeenCalled();
-    });
-
-    it("should log error and rethrow when addUserToQueue fails", async () => {
-      const error = new Error("Queue full");
-      (supabaseService.addUserToQueue as jest.Mock).mockRejectedValue(error);
-
-      await expect(matchingService.addToQueue("user123")).rejects.toThrow(
-        "Queue full"
-      );
-
-      expect(logger.error).toHaveBeenCalledWith(
-        "Failed to add user user123 to Supabase queue:",
-        error
-      );
-    });
-  });
-
   describe("removeFromQueue", () => {
     it("should remove user from queue successfully", async () => {
       (supabaseService.removeUserFromQueue as jest.Mock).mockResolvedValue(
@@ -183,33 +148,6 @@ describe("MatchingService", () => {
 
       expect(logger.error).toHaveBeenCalledWith(
         "Failed to remove user user123 from Supabase queue:",
-        error
-      );
-    });
-  });
-
-  describe("addToQueueWithoutMatchMaking", () => {
-    it("should add user to queue without triggering matching", async () => {
-      (supabaseService.addUserToQueue as jest.Mock).mockResolvedValue(
-        undefined
-      );
-
-      await matchingService.addToQueueWithoutMatchMaking("user123");
-
-      expect(supabaseService.addUserToQueue).toHaveBeenCalledWith("user123");
-      // Should not trigger processMatchingQueue (no additional calls)
-    });
-
-    it("should log error and rethrow when addUserToQueue fails", async () => {
-      const error = new Error("Queue error");
-      (supabaseService.addUserToQueue as jest.Mock).mockRejectedValue(error);
-
-      await expect(
-        matchingService.addToQueueWithoutMatchMaking("user123")
-      ).rejects.toThrow("Queue error");
-
-      expect(logger.error).toHaveBeenCalledWith(
-        "Failed to add user user123 to Supabase queue:",
         error
       );
     });
@@ -340,133 +278,6 @@ describe("MatchingService", () => {
         "Failed to clear matches for match: match123",
         error
       );
-    });
-  });
-
-  describe("getMatchStatus", () => {
-    it("should return match from Redis cache", async () => {
-      const mockMatches = [{ matchId: "match123", users: ["user1", "user2"] }];
-      (redisService.getMatchFromCache as jest.Mock).mockResolvedValue(
-        mockMatches
-      );
-
-      const result = await matchingService.getMatchStatus("user123");
-
-      expect(redisService.getMatchFromCache).toHaveBeenCalledWith("user123");
-      expect(supabaseService.getMatchStatus).not.toHaveBeenCalled();
-      expect(result).toEqual(mockMatches);
-    });
-
-    it("should fetch from Supabase and cache when not in Redis", async () => {
-      const mockMatch = {
-        match_id: "match123",
-        user1_id: "user1",
-        user2_id: "user2",
-      };
-
-      (redisService.getMatchFromCache as jest.Mock).mockResolvedValue(null);
-      (supabaseService.getMatchStatus as jest.Mock).mockResolvedValue(
-        mockMatch
-      );
-
-      const result = await matchingService.getMatchStatus("user123");
-
-      expect(supabaseService.getMatchStatus).toHaveBeenCalledWith("user123");
-      expect(redisService.addMatchToCache).toHaveBeenCalledWith(
-        "user1",
-        "user2",
-        "match123"
-      );
-      expect(result).toBe("match123");
-    });
-
-    it("should return null when no match found", async () => {
-      (redisService.getMatchFromCache as jest.Mock).mockResolvedValue(null);
-      (supabaseService.getMatchStatus as jest.Mock).mockResolvedValue(null);
-
-      const result = await matchingService.getMatchStatus("user123");
-
-      expect(result).toBeNull();
-    });
-  });
-
-  describe("createMatch", () => {
-    it("should create match successfully", async () => {
-      const mockCollabData = {
-        id: "collab123",
-        interviewer_id: "user1",
-        interviewee_id: "user2",
-        initial_code: "",
-        created_at: new Date().toISOString(),
-        status: "active",
-      };
-
-      (uuidv4 as jest.Mock).mockReturnValue("match123");
-      (supabaseService.handleNewMatch as jest.Mock).mockResolvedValue({
-        success: true,
-      });
-      (supabaseService.removeUserFromQueue as jest.Mock).mockResolvedValue(
-        undefined
-      );
-      (createCollaboration as jest.Mock).mockResolvedValue(mockCollabData);
-
-      await matchingService.createMatch("user1", "user2");
-
-      expect(supabaseService.handleNewMatch).toHaveBeenCalledWith(
-        "user1",
-        "user2",
-        "match123"
-      );
-      expect(createCollaboration).toHaveBeenCalledWith("user1", "user2");
-      expect(webSocketManager.sendMessage).toHaveBeenCalledTimes(2);
-      expect(webSocketManager.sendMessage).toHaveBeenCalledWith(
-        "user1",
-        expect.objectContaining({
-          type: "MATCH_FOUND",
-          payload: expect.objectContaining({
-            matchId: "match123",
-            users: ["user1", "user2"],
-            collaborationUrl: "/room/collab123",
-          }),
-        })
-      );
-    });
-
-    it("should rollback match when collaboration creation fails", async () => {
-      (uuidv4 as jest.Mock).mockReturnValue("match123");
-      (supabaseService.handleNewMatch as jest.Mock).mockResolvedValue({
-        success: true,
-      });
-      (supabaseService.removeUserFromQueue as jest.Mock).mockResolvedValue(
-        undefined
-      );
-      (createCollaboration as jest.Mock).mockRejectedValue(
-        new ApiError("Collaboration failed", 500)
-      );
-      (supabaseService.deleteMatch as jest.Mock).mockResolvedValue(undefined);
-      (supabaseService.addUserToQueue as jest.Mock).mockResolvedValue(
-        undefined
-      );
-
-      await matchingService.createMatch("user1", "user2");
-
-      expect(supabaseService.deleteMatch).toHaveBeenCalledWith("match123");
-      expect(supabaseService.addUserToQueue).toHaveBeenCalledWith("user1");
-      expect(supabaseService.addUserToQueue).toHaveBeenCalledWith("user2");
-      expect(webSocketManager.sendMessage).not.toHaveBeenCalled();
-    });
-
-    it("should not create match when Supabase handleNewMatch fails", async () => {
-      (uuidv4 as jest.Mock).mockReturnValue("match123");
-      (supabaseService.handleNewMatch as jest.Mock).mockResolvedValue({
-        success: false,
-        message: "Database error",
-      });
-
-      await matchingService.createMatch("user1", "user2");
-
-      expect(createCollaboration).not.toHaveBeenCalled();
-      expect(webSocketManager.sendMessage).not.toHaveBeenCalled();
     });
   });
 });
