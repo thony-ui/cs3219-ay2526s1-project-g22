@@ -58,7 +58,7 @@ export async function createCollaboration(userId1: string, userId2: string, ques
 
     return fetcher<CollaborationData>('sessions', {
         method: 'POST',
-        body: JSON.stringify(participants, question.questionId),
+        body: JSON.stringify(participants),
     });
 }
 
