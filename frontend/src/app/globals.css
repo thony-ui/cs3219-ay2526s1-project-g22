@@ -123,25 +123,3 @@
     @apply cursor-pointer;
   }
 }
-
-@layer utilities {
-  .pretty-scrollbar {
-    /* For Firefox */
-    scrollbar-width: thin;
-    scrollbar-color: theme('colors.blue.600') theme('colors.slate.800');
-  }
-
-  /* For Chrome, Safari, Edge */
-  .pretty-scrollbar::-webkit-scrollbar {
-    @apply w-2; /* 8px */
-  }
-  .pretty-scrollbar::-webkit-scrollbar-track {
-    @apply bg-slate-800;
-  }
-  .pretty-scrollbar::-webkit-scrollbar-thumb {
-    @apply bg-blue-600 rounded-md;
-  }
-  .pretty-scrollbar::-webkit-scrollbar-thumb:hover {
-    @apply bg-blue-500;
-  }
-}

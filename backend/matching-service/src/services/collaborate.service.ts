@@ -1,5 +1,4 @@
 import * as jwt from 'jsonwebtoken';
-import {QuestionData} from "./question.service";
 
 export class ApiError extends Error {
     constructor(message: string, public status: number) {
@@ -50,7 +49,7 @@ async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 // Creates a new collaboration session.
 // @param participants An array of user IDs.
-export async function createCollaboration(userId1: string, userId2: string, question: QuestionData): Promise<CollaborationData> {
+export async function createCollaboration(userId1: string, userId2: string): Promise<CollaborationData> {
     let participants = { interviewer_id: userId1, interviewee_id: userId2};
     if (Math.random() < 0.5){
         // swap roles
@@ -59,7 +58,7 @@ export async function createCollaboration(userId1: string, userId2: string, ques
 
     return fetcher<CollaborationData>('sessions', {
         method: 'POST',
-        body: JSON.stringify(participants, question.questionId),
+        body: JSON.stringify(participants),
     });
 }
 
