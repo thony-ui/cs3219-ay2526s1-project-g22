@@ -2,9 +2,10 @@ import {redisService} from '../services/redis.service';
 import {supabaseService} from '../services/supabase.service';
 import {logger} from '../utils/logger';
 import {UserPreference} from '../types';
-import { v4 as uuidv4 } from 'uuid';
-import { webSocketManager } from '../websockets/websocket.manager';
-import {CollaborationData, createCollaboration, ApiError} from "../services/collaborate.service";
+import {v4 as uuidv4} from 'uuid';
+import {webSocketManager} from '../websockets/websocket.manager';
+import {ApiError, CollaborationData, createCollaboration} from "../services/collaborate.service";
+import {getRandomQuestion, QuestionData} from "../services/question.service";
 
 export class MatchingService {
     private readonly CACHE_KEY_PREFIX = 'user_match_pref:';
@@ -284,6 +285,29 @@ export class MatchingService {
         await supabaseService.removeUserFromQueue(otherUserId);
     }
 
+    async getCommonPref(userId1: string, userId2: string): Promise<[string | undefined, string[]]> {
+        const prefs1 = await this.getUserPreference(userId1);
+        const prefs2 = await this.getUserPreference(userId2);
+
+        // Handle cases where one or both users/preferences don't exist
+        if (!prefs1 || !prefs2) {
+            // Return a tuple that matches the Promise return type
+            return [undefined, []];
+        }
+
+        const topics1 = new Set(prefs1.topics);
+        const commonTopics: string[] = [];
+
+        for (const topic of prefs2.topics) {
+            if (topics1.has(topic)) {
+                commonTopics.push(topic);
+            }
+        }
+
+        // Return the difficulty and common topics as a tuple (an array)
+        return [prefs1.difficulty, commonTopics];
+    }
+
     async finalizeMatch(userId1: string, userId2: string, proposalId: string): Promise<void> {
         const matchId = uuidv4();
     
@@ -300,10 +324,28 @@ export class MatchingService {
             await this.removeFromQueue(userId1);
             await this.removeFromQueue(userId2);
 
+            // Get list of topics for the matched users
+            let question: QuestionData
+            let questionid = '';
+            try {
+                const commonPref = await this.getCommonPref(userId1, userId2);
+                logger.info(`Common preferences for users ${userId1} and ${userId2}:`, commonPref);
+
+                question = await getRandomQuestion(commonPref[0], commonPref[1]);
+                logger.info(`Selected question for match ${matchId}:`, question._id);
+            } catch (error) {
+                logger.error(`Failed to get common preferences or select question for users ${userId1} and ${userId2}:`, error);
+                throw error; // rethrow to be caught by outer catch
+            }
+
+            if (question) {
+                questionid = question._id;
+            }
+
             let collaborationData: CollaborationData;
             try {
                 // Create the collaboration room. This is the part that can throw an ApiError.
-                collaborationData = await createCollaboration(userId1, userId2);
+                collaborationData = await createCollaboration(userId1, userId2, questionid);
                 logger.info(`Successfully created collaboration room ${collaborationData.id} for match ${matchId}.`);
 
             } catch (error) {
@@ -360,9 +402,13 @@ export class MatchingService {
             }
 
             // Process all matches in parallel
-            const processedHistory = await Promise.all(historyArray.map(async (match) => {
-                const { session_id, match_id } = match;
-                const { interviewer_id, interviewee_id, status } = await supabaseService.getCollaborationHistory(session_id);
+            return await Promise.all(historyArray.map(async (match) => {
+                const {session_id, match_id} = match;
+                const {
+                    interviewer_id,
+                    interviewee_id,
+                    status
+                } = await supabaseService.getCollaborationHistory(session_id);
 
                 let oppositeName: string;
                 let role: string;
@@ -375,10 +421,14 @@ export class MatchingService {
                     role = "interviewee";
                 }
 
-                return { matchId: match_id, sessionId: session_id, role: role, status: status, oppositeName: oppositeName };
+                return {
+                    matchId: match_id,
+                    sessionId: session_id,
+                    role: role,
+                    status: status,
+                    oppositeName: oppositeName
+                };
             }));
-
-            return processedHistory;
 
         } catch (error) {
             logger.error(`Failed to get match history for user: ${userId}`, error);

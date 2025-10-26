@@ -49,16 +49,16 @@ async function fetcher<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 // Creates a new collaboration session.
 // @param participants An array of user IDs.
-export async function createCollaboration(userId1: string, userId2: string): Promise<CollaborationData> {
-    let participants = { interviewer_id: userId1, interviewee_id: userId2};
+export async function createCollaboration(userId1: string, userId2: string, question: string): Promise<CollaborationData> {
+    let body = { interviewer_id: userId1, interviewee_id: userId2, question_id: question };
     if (Math.random() < 0.5){
         // swap roles
-        participants = { interviewer_id: userId2, interviewee_id: userId1};
+        body = { interviewer_id: userId2, interviewee_id: userId1, question_id: question};
     }
 
     return fetcher<CollaborationData>('sessions', {
         method: 'POST',
-        body: JSON.stringify(participants),
+        body: JSON.stringify(body),
     });
 }
 
