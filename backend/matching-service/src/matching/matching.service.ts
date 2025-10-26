@@ -2,9 +2,9 @@ import {redisService} from '../services/redis.service';
 import {supabaseService} from '../services/supabase.service';
 import {logger} from '../utils/logger';
 import {UserPreference} from '../types';
-import { v4 as uuidv4 } from 'uuid';
-import { webSocketManager } from '../websockets/websocket.manager';
-import {CollaborationData, createCollaboration, ApiError} from "../services/collaborate.service";
+import {v4 as uuidv4} from 'uuid';
+import {webSocketManager} from '../websockets/websocket.manager';
+import {ApiError, CollaborationData, createCollaboration} from "../services/collaborate.service";
 import {getRandomQuestion, QuestionData} from "../services/question.service";
 
 export class MatchingService {
@@ -332,14 +332,14 @@ export class MatchingService {
                 logger.info(`Common preferences for users ${userId1} and ${userId2}:`, commonPref);
 
                 question = await getRandomQuestion(commonPref[0], commonPref[1]);
-                logger.info(`Selected question for match ${matchId}:`, question);
+                logger.info(`Selected question for match ${matchId}:`, question._id);
             } catch (error) {
                 logger.error(`Failed to get common preferences or select question for users ${userId1} and ${userId2}:`, error);
                 throw error; // rethrow to be caught by outer catch
             }
 
             if (question) {
-                questionid = question.questionId;
+                questionid = question._id;
             }
 
             let collaborationData: CollaborationData;
@@ -402,9 +402,13 @@ export class MatchingService {
             }
 
             // Process all matches in parallel
-            const processedHistory = await Promise.all(historyArray.map(async (match) => {
-                const { session_id, match_id } = match;
-                const { interviewer_id, interviewee_id, status } = await supabaseService.getCollaborationHistory(session_id);
+            return await Promise.all(historyArray.map(async (match) => {
+                const {session_id, match_id} = match;
+                const {
+                    interviewer_id,
+                    interviewee_id,
+                    status
+                } = await supabaseService.getCollaborationHistory(session_id);
 
                 let oppositeName: string;
                 let role: string;
@@ -417,10 +421,14 @@ export class MatchingService {
                     role = "interviewee";
                 }
 
-                return { matchId: match_id, sessionId: session_id, role: role, status: status, oppositeName: oppositeName };
+                return {
+                    matchId: match_id,
+                    sessionId: session_id,
+                    role: role,
+                    status: status,
+                    oppositeName: oppositeName
+                };
             }));
-
-            return processedHistory;
 
         } catch (error) {
             logger.error(`Failed to get match history for user: ${userId}`, error);
