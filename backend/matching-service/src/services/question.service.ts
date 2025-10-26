@@ -80,7 +80,28 @@ export async function getRandomQuestion(difficulty: string | undefined, topics: 
 
   const url = `questions/random${queryString ? `?${queryString}` : ''}`;
 
-  return await fetcher<QuestionData>(url, {
+  const res = fetcher<QuestionData>(url, {
     method: 'GET',
   });
+
+  return res.then(data=> {
+    return data;
+  });
+}
+
+function createAuthHeader() {
+  const secretKey = process.env.SECRET_KEY;
+
+  if (!secretKey) {
+    throw new Error('SECRET_KEY is not defined in environment variables');
+  }
+
+  const payload = {
+    sub: "matching-service-internal-call",
+  }
+
+  const token = jwt.sign(payload, secretKey, { expiresIn: '5m' });
+  return {
+    'Authorization': `Bearer ${token}`,
+  };
 }

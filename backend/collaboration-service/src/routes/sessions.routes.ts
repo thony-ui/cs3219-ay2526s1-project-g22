@@ -11,7 +11,6 @@ type CreateSessionBody = {
   interviewer_id?: string;
   interviewee_id: string;
   initial_code?: string;
-  question_id?: string;
 };
 
 type UpdateSnapshotBody = {
@@ -40,26 +39,10 @@ router.post(
         interviewer_id = "testinterviewr",
         interviewee_id,
         initial_code = "",
-        question_id = "",
       } = req.body;
       // if (!interviewer_id || !interviewee_id) {
       //   return res.status(400).json({ error: "Missing Participants" });
       // }
-
-      // If question_id is provided, use it directly
-      if (question_id) {
-        try {
-          const session = await createSession(
-            interviewer_id,
-            interviewee_id,
-            question_id,
-            initial_code
-          );
-          return res.json(session);
-        } catch (err) {
-          return res.status(500).json({ error: (err as Error).message });
-        }
-      }
 
       // Fetch a random question from the question service
       const questionServiceUrl = process.env.QUESTION_SERVICE_URL || "http://localhost:5002";
