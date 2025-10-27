@@ -60,10 +60,10 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
         if (!ignore) {
           setAvailableTopics(data);
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         console.error("Load topics error", e);
-        if (!ignore)
-          setTopicsError(e?.message ?? "Failed to load topics list");
+        if (!ignore) setTopicsError(e?.message ?? "Failed to load topics list");
       } finally {
         if (!ignore) setTopicsLoading(false);
       }
@@ -158,9 +158,7 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
 
   function handleTopicToggle(topic: string) {
     setTopics((prev) =>
-      prev.includes(topic)
-        ? prev.filter((t) => t !== topic)
-        : [...prev, topic]
+      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
     );
   }
 
@@ -232,7 +230,6 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
               ) : topicsError ? (
                 <div className="text-sm text-rose-300">{topicsError}</div>
               ) : (
-
                 <div
                   id="topics-container"
                   className={[
