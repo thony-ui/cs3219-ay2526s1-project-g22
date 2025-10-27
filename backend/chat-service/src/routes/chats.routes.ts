@@ -21,6 +21,7 @@ router.get(
       const chats = await fetchChats(sessionId, since);
       res.json(chats);
     } catch (err: any) {
+      console.error("Error in GET /sessions/:sessionId/chats:", err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -57,6 +58,7 @@ router.post(
       );
       res.json(chat);
     } catch (err: any) {
+      console.error("Error in POST /sessions/:sessionId/chats:", err);
       res.status(500).json({ error: err.message });
     }
   }

@@ -52,9 +52,14 @@ const baseApiUrl = "/api/collaboration-service";
 type Props = {
   sessionId: string;
   question?: Question;
+  showHeader?: boolean;
 };
 
-export default function CodeEditor({ sessionId, question }: Props) {
+export default function CodeEditor({
+  sessionId,
+  question,
+  showHeader = true,
+}: Props) {
   const router = useRouter();
   const [sessionEnded, setSessionEnded] = useState(false);
   const { user } = useUser();
@@ -110,25 +115,42 @@ export default function CodeEditor({ sessionId, question }: Props) {
     }
   };
 
-  const endSession = useCallback(() => {
-    const channel = channelRef.current;
-    if (!channel) return;
-    channel.send({
-      type: "broadcast",
-      event: "exit_session",
-      payload: { type: "end_session", from: userId, ts: Date.now() },
-    });
-    if (snapshotIntervalRef.current) {
-      clearInterval(snapshotIntervalRef.current);
-      snapshotIntervalRef.current = null;
-    }
-    if (channelRef.current) {
-      channelRef.current.unsubscribe();
-      channelRef.current = null;
-    }
-    setSessionEnded(true);
-    setTimeout(() => router.push("/"), 1000);
-  }, [userId, router]);
+  // endSession optionally sends a broadcast to notify other participants.
+  // When called as a reaction to a received broadcast, call with sendBroadcast=false
+  // to avoid re-broadcast loops.
+  const endSession = useCallback(
+    (sendBroadcast = true) => {
+      const channel = channelRef.current;
+      if (sendBroadcast && channel) {
+        try {
+          channel.send({
+            type: "broadcast",
+            event: "exit_session",
+            payload: { type: "end_session", from: userId, ts: Date.now() },
+          });
+        } catch (err) {
+          // ignore send errors
+          // console.debug("endSession broadcast failed", err);
+        }
+      }
+
+      if (snapshotIntervalRef.current) {
+        clearInterval(snapshotIntervalRef.current);
+        snapshotIntervalRef.current = null;
+      }
+      if (channelRef.current) {
+        try {
+          channelRef.current.unsubscribe();
+        } catch (err) {
+          // ignore
+        }
+        channelRef.current = null;
+      }
+      setSessionEnded(true);
+      setTimeout(() => router.push("/"), 1000);
+    },
+    [userId, router]
+  );
 
   const joinRealtimeChannel = useCallback(
     async (initialCode: string) => {
@@ -148,15 +170,44 @@ export default function CodeEditor({ sessionId, question }: Props) {
         applyAwarenessUpdate(awarenessRef.current, update, "remote");
       });
 
-      // exit session for both users
+      // exit session for both users -- robust parsing + diagnostics
       channel.on("broadcast", { event: "exit_session" }, (payload) => {
-        const data = payload.payload as { type: string; from: string };
-        if (data.type === "end_session") endSession();
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const raw = payload as any;
+          console.debug("realtime: exit_session raw payload", raw);
+
+          // try a few common places where the sent payload may appear
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const maybe = raw.payload ?? raw.message ?? raw.data ?? raw;
+          const candidate = (maybe && (maybe.payload ?? maybe)) as any;
+
+          if (candidate && candidate.type === "end_session") {
+            console.info("received exit_session payload", {
+              sessionId,
+              from: candidate.from,
+            });
+            // If the payload includes a truthy `from` equal to our userId, it's our own
+            // broadcast and we should not re-run endSession. Otherwise run cleanup.
+            if (!(candidate.from && candidate.from === userId))
+              endSession(false);
+          }
+        } catch (err) {
+          console.warn("realtime: failed to handle exit_session payload", err);
+        }
       });
 
       const sub = await channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          await channel.track({ userId });
+          try {
+            await channel.track({ userId });
+            console.info("realtime: subscribed to room channel", {
+              room: sessionId,
+              userId,
+            });
+          } catch (err) {
+            console.warn("realtime: track failed", err);
+          }
         }
       });
 
@@ -251,6 +302,36 @@ export default function CodeEditor({ sessionId, question }: Props) {
     };
   }, []);
 
+  // Listen for a global end-session event dispatched by the header/button
+  // in case the header is rendered outside the realtime provider. When this
+  // event is received we call the same local endSession function which will
+  // broadcast the exit_session message to other clients and perform cleanup.
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        const ev = e as CustomEvent<{ sessionId?: string }>;
+        // if event specifies a sessionId and it doesn't match, ignore
+        if (
+          ev &&
+          ev.detail &&
+          ev.detail.sessionId &&
+          ev.detail.sessionId !== sessionId
+        )
+          return;
+        endSession();
+      } catch (err) {
+        // ignore
+      }
+    };
+    window.addEventListener("peerprep:end_session", handler as EventListener);
+    return () =>
+      window.removeEventListener(
+        "peerprep:end_session",
+        handler as EventListener
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [endSession]);
+
   const extensions = useMemo(() => {
     const langConfig =
       languageMap[selectedLanguage as keyof typeof languageMap];
@@ -286,14 +367,16 @@ export default function CodeEditor({ sessionId, question }: Props) {
       )}
 
       <div className="flex flex-col h-full">
-        {/* Header */}
-        <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
-          <CodeEditorHeader
-            sessionId={sessionId}
-            userId={userId || "unknown"}
-            isBlocked={false} // everyone can edit
-          />
-        </div>
+        {/* Header (can be rendered by parent if desired) */}
+        {showHeader && (
+          <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
+            <CodeEditorHeader
+              sessionId={sessionId}
+              userId={userId || "unknown"}
+              isBlocked={false} // everyone can edit
+            />
+          </div>
+        )}
 
         {/* Language & Execute controls */}
         <CodeEditorLanguageSelectionAndRunButton

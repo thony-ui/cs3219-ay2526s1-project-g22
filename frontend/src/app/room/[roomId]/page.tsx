@@ -2,6 +2,9 @@
 
 import React, { useEffect, useState } from "react";
 import CodeEditor from "../_components/CodeEditor";
+import ChatPanel from "../_components/ChatPanel";
+import CodeEditorHeader from "../_components/CodeEditorHeader";
+import { useUser } from "@/contexts/user-context";
 import axiosInstance from "@/lib/axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -13,6 +16,7 @@ export default function RoomPage({
   const { roomId } = React.use(params);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [question, setQuestion] = useState<any>(null);
+  const { user } = useUser();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,9 +149,43 @@ export default function RoomPage({
       {/* Code Editor Section */}
       <div className="w-3/5 min-h-0 flex flex-col p-6 pl-3">
         <div className="h-full bg-slate-800/60 backdrop-blur-sm rounded-xl shadow-2xl border border-slate-600/50 overflow-hidden">
-          <CodeEditor sessionId={roomId} question={question} />
+          {/* Header spanning editor + chat */}
+          <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
+            <CodeEditorHeader
+              sessionId={roomId}
+              userId={user?.id || "unknown"}
+              isBlocked={false}
+            />
+          </div>
+          <div className="flex h-full min-h-0">
+            <div className="flex-1 min-w-0">
+              <CodeEditor
+                sessionId={roomId}
+                question={question}
+                showHeader={false}
+              />
+            </div>
+            {/* Chat panel width shrinks when collapsed so editor can expand */}
+            <ChatWrapper sessionId={roomId} />
+          </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ChatWrapper({ sessionId }: { sessionId: string }) {
+  const [collapsed, setCollapsed] = useState(false);
+  // keep the chat hidden on small screens as before
+  const baseClass = "hidden md:block ml-4";
+  const widthClass = collapsed ? "w-12" : "w-80";
+  return (
+    <div className={`${widthClass} ${baseClass} h-full`}>
+      <ChatPanel
+        sessionId={sessionId}
+        collapsed={collapsed}
+        setCollapsed={setCollapsed}
+      />
     </div>
   );
 }

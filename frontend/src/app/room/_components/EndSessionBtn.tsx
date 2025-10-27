@@ -27,7 +27,22 @@ export default function EndSessionButton({
       setIsLoading(true);
       // update db
       await axiosInstance.patch(`${baseApiUrl}/sessions/${sessionId}/complete`);
-      endSession(); // broadcast in editor
+      // Broadcast locally via context if available (when header is inside provider).
+      try {
+        if (typeof endSession === "function") endSession();
+      } catch (e) {
+        // ignore if provider not present
+      }
+      // Also dispatch a global event that the CodeEditor (which owns the realtime
+      // channel) listens to. This handles the case where the header is rendered
+      // outside of the realtime provider.
+      try {
+        window.dispatchEvent(
+          new CustomEvent("peerprep:end_session", { detail: { sessionId } })
+        );
+      } catch (e) {
+        // ignore
+      }
     } catch (err) {
       console.error("Failed to end session:", err);
       alert("Failed to end session. Please try again.");

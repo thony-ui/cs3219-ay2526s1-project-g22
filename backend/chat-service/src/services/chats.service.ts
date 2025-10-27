@@ -12,7 +12,7 @@ export type ChatRow = {
 
 export async function fetchChats(
   sessionId: string,
-  since?: string,
+  since?: string | number,
   limit = 50
 ): Promise<ChatRow[]> {
   let query = supabase
@@ -22,7 +22,20 @@ export async function fetchChats(
     .order("created_at", { ascending: true });
 
   if (since) {
-    query = query.gt("created_at", since);
+    // The frontend may send a numeric epoch ms value (e.g. Date.getTime()).
+    // Postgres/Supabase expect a timestamp string, so convert numeric
+    // milliseconds (or numeric-strings) to an ISO timestamp before querying.
+    let sinceIso: string;
+    if (typeof since === "number") {
+      sinceIso = new Date(since).toISOString();
+    } else if (/^\d+$/.test(since)) {
+      // numeric string
+      sinceIso = new Date(Number(since)).toISOString();
+    } else {
+      // assume it's already an ISO timestamp or valid comparison value
+      sinceIso = since as string;
+    }
+    query = query.gt("created_at", sinceIso);
   } else {
     query = query.limit(limit);
   }
