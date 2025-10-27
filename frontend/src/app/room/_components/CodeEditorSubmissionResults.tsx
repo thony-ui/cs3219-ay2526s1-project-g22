@@ -40,7 +40,7 @@ function CodeEditorSubmissionResults({
                       key={submissionHistory.length - 1 - index}
                       className="bg-slate-800/60 border border-slate-600/40 rounded-lg p-4 hover:bg-slate-800/80 transition-colors"
                     >
-                      <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center justify-between mb-3 gap-4">
                         <h4 className="font-semibold text-slate-200 text-sm">
                           {submission.language}
                         </h4>
@@ -48,29 +48,8 @@ function CodeEditorSubmissionResults({
                           #{submissionHistory.length - index}
                         </span>
                       </div>
-                      <div className="bg-slate-900/60 rounded-md p-3 border border-slate-700/50 flex items-center gap-4">
-                        {(() => {
-                          const results = submission?.results ?? [];
-                          const passed = Array.isArray(results)
-                            ? results.filter((r) => r.pass).length
-                            : 0;
-                          return (
-                            <span className="text-green-400 font-semibold text-sm">
-                              Passed: {passed}
-                            </span>
-                          );
-                        })()}
-                        {(() => {
-                          const results = submission?.results ?? [];
-                          const failed = Array.isArray(results)
-                            ? results.filter((r) => !r.pass).length
-                            : 0;
-                          return (
-                            <span className="text-red-400 font-semibold text-sm">
-                              Failed: {failed}
-                            </span>
-                          );
-                        })()}
+                      <div className="bg-slate-900/60 rounded-md p-3 border border-slate-700/50 flex items-center gap-4 text-white">
+                        {submission.output}
                       </div>
                     </div>
                   ))}
