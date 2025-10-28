@@ -4,6 +4,7 @@ import {
   getSessionById,
   updateSessionSnapshot,
   completeSession,
+  getAllSessionSummaryOfUser,
 } from "../services/sessions.service";
 import { authenticateUser } from "./authorization";
 
@@ -36,7 +37,7 @@ router.post(
       }
 
       const {
-        interviewer_id = "testinterviewr",
+        interviewer_id = null,
         interviewee_id,
         initial_code = "",
       } = req.body;
@@ -45,7 +46,8 @@ router.post(
       // }
 
       // Fetch a random question from the question service
-      const questionServiceUrl = process.env.QUESTION_SERVICE_URL || "http://localhost:5002";
+      const questionServiceUrl =
+        process.env.QUESTION_SERVICE_URL || "http://localhost:5002";
       let questionId: string;
       try {
         const response = await fetch(`${questionServiceUrl}/questions/random`);
@@ -62,7 +64,9 @@ router.post(
         }
       } catch (error) {
         console.error("Error fetching random question:", error);
-        return res.status(500).json({ error: "Could not retrieve random question" });
+        return res
+          .status(500)
+          .json({ error: "Could not retrieve random question" });
       }
 
       // Create the session in Supabase with the questionId
@@ -130,5 +134,19 @@ router.patch(
     }
   }
 );
+
+router.post("/getUserSessions", authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const sessions = await getAllSessionSummaryOfUser(userId);
+    res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch user sessions" });
+  }
+});
 
 export default router;

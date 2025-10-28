@@ -64,6 +64,20 @@ export async function findQuestionById(id: string): Promise<Question | null> {
     .findOne({ _id: new ObjectId(id) as any });
 }
 
+export async function findQuestionsByIds(ids: string[]): Promise<Question[]> {
+  const db = getDb();
+  const objectIds = ids.map((id) => new ObjectId(id));
+  const questions = await db
+    .collection<Question>("questions")
+    .find({ _id: { $in: objectIds } })
+    .toArray();
+
+  return questions.map((q) => ({
+    ...q,
+    _id: q._id?.toString(),
+  }));
+}
+
 export async function findAllTopics(): Promise<string[]> {
   const db = getDb();
 
