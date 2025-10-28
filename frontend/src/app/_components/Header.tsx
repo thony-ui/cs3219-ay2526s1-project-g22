@@ -14,9 +14,9 @@ import { User, LogOut, Code2, History } from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@/contexts/user-context";
 import { signOut } from "@/lib/auth";
-import { SoloPracticeButton } from "./SoloPracticeButton";
+import SoloPracticeButton from "./SoloPracticeButton";
 
-export function Header() {
+export default function Header() {
   const { user } = useUser();
 
   const handleLogout = async () => {
