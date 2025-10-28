@@ -2,9 +2,11 @@ name: CI Frontend
 
 on:
   push:
-    branches: [master, "**/*"] # Previews on all branches
-  pull_request_target:
-    branches: ["master"] # Trigger on all pull requests targeting master
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   deploy:
