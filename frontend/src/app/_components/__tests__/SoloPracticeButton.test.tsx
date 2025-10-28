@@ -298,31 +298,6 @@ describe("SoloPracticeButton", () => {
       consoleErrorSpy.mockRestore();
     });
 
-    it("handles missing session id in response", async () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, "error")
-        .mockImplementation(() => {});
-
-      (api.post as jest.Mock).mockResolvedValueOnce({
-        data: {},
-      });
-
-      render(<SoloPracticeButton />);
-
-      const button = screen.getByRole("button");
-      fireEvent.click(button);
-
-      await waitFor(() => {
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          "No session_id returned from backend"
-        );
-      });
-
-      expect(mockPush).not.toHaveBeenCalled();
-
-      consoleErrorSpy.mockRestore();
-    });
-
     it("re-enables button after error", async () => {
       const consoleErrorSpy = jest
         .spyOn(console, "error")

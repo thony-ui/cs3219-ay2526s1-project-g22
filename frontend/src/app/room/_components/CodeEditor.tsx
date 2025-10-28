@@ -180,6 +180,7 @@ export default function CodeEditor({
           // try a few common places where the sent payload may appear
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const maybe = raw.payload ?? raw.message ?? raw.data ?? raw;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const candidate = (maybe && (maybe.payload ?? maybe)) as any;
 
           if (candidate && candidate.type === "end_session") {
