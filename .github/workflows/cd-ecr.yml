@@ -9,6 +9,7 @@ on:
       - "backend/question-service/**"
       - "backend/matching-service/**"
       - "backend/collaboration-service/**"
+      - "backend/chat-service/**"
       - ".github/workflows/cd-ecr.yml"
 
 jobs:
@@ -26,6 +27,7 @@ jobs:
               name: "collaboration-service",
               folder: "backend/collaboration-service",
             }
+          - { name: "chat-service", folder: "backend/chat-service" }
 
     steps:
       - uses: actions/checkout@v4

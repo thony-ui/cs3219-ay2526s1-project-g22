@@ -1,7 +1,13 @@
-'use client';
+"use client";
 
-import { Header } from "@/app/_components/Header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import Header from "@/app/_components/Header";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useUser } from "@/contexts/user-context";
 import { useRouter } from "next/navigation";
 import {
@@ -12,7 +18,9 @@ import {
   Loader2,
   User,
   X,
-  AlertTriangle, Timer, TimerIcon,
+  AlertTriangle,
+  Timer,
+  TimerIcon,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
@@ -82,7 +90,9 @@ export default function MatchHistoryPage() {
         const fetchedMatches = await fetchMatchHistory(user.id);
         setMatches(fetchedMatches);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "An unknown error occurred");
+        setError(
+          err instanceof Error ? err.message : "An unknown error occurred"
+        );
       } finally {
         setIsLoading(false);
       }
@@ -134,19 +144,22 @@ export default function MatchHistoryPage() {
                   </p>
                 </div>
 
-                { match.role === "interviewer" ? (
-                <div className="inline-flex items-center space-x-1.5 rounded-full bg-orange-900/50 text-orange-300 px-3 py-1 text-sm font-medium border border-green-700/50">
-                  <span className="font-medium text-orange">{match.role}</span>
-                </div>
-              ) : (
-                <div className="inline-flex items-center space-x-1.5 rounded-full bg-purple-900/50 text-purple-300 px-3 py-1 text-sm font-medium border border-green-700/50">
-                  <span className="font-medium text-purple-400">{match.role}</span>
-                </div> )
-              }
+                {match.role === "interviewer" ? (
+                  <div className="inline-flex items-center space-x-1.5 rounded-full bg-orange-900/50 text-orange-300 px-3 py-1 text-sm font-medium border border-green-700/50">
+                    <span className="font-medium text-orange">
+                      {match.role}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center space-x-1.5 rounded-full bg-purple-900/50 text-purple-300 px-3 py-1 text-sm font-medium border border-green-700/50">
+                    <span className="font-medium text-purple-400">
+                      {match.role}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
             {/* --- MODIFICATION END --- */}
-
 
             {/* Match Outcome */}
             <div className="flex-shrink-0">
@@ -158,13 +171,14 @@ export default function MatchHistoryPage() {
               ) : (
                 <div className="inline-flex items-center space-x-1.5 rounded-full bg-yellow-900/50 text-yellow-300 px-3 py-1 text-sm font-medium border border-yellow-700/50">
                   <TimerIcon className="h-4 w-4" />
-                  <span>{match.outcome.charAt(0).toUpperCase() + match.outcome.slice(1)}</span>
+                  <span>
+                    {match.outcome.charAt(0).toUpperCase() +
+                      match.outcome.slice(1)}
+                  </span>
                 </div>
               )}
             </div>
-
           </div>
-
         ))}
       </div>
     );

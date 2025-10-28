@@ -1,5 +1,5 @@
 "use client";
-import { Header } from "./_components/Header";
+import Header from "./_components/Header";
 import Footer from "./_components/Footer";
 import { useUser } from "@/contexts/user-context";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ const mockMatches: Match[] = [
 
 export default function Home() {
   const { user, isLoading } = useUser();
-    const router = useRouter();
+  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -67,7 +67,7 @@ export default function Home() {
             <Button
               size="lg"
               className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-4 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-              onClick={() => router.push('/matching')}
+              onClick={() => router.push("/matching")}
             >
               <Users className="w-5 h-5 mr-3" />
               Find Match

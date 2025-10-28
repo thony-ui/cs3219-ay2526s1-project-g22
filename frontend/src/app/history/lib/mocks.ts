@@ -407,19 +407,3 @@ export const mockdata = [
     },
   },
 ];
-
-export const fetchMockData = async (
-  setData: Dispatch<SetStateAction<HistoryData[]>>,
-  setLoading: Dispatch<SetStateAction<boolean>>
-) => {
-  setLoading(true);
-
-  const data = await new Promise<HistoryData[]>((resolve) => {
-    setTimeout(() => {
-      resolve(mockdata);
-    }, 1000);
-  });
-
-  setData(data);
-  setLoading(false);
-};
