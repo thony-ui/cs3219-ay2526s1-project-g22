@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Difficulty = "easy" | "medium" | "hard";
 
@@ -18,20 +18,22 @@ type Props = {
 };
 
 export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
-  const [initialLoading, setInitialLoading] = useState(false);
+  const [prefsLoading, setPrefsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [topicsInput, setTopicsInput] = useState("");
+  const [availableTopics, setAvailableTopics] = useState<string[]>([]);
+  const [topicsLoading, setTopicsLoading] = useState(false);
+  const [topicsError, setTopicsError] = useState<string | null>(null);
+
+  const [topics, setTopics] = useState<string[]>([]);
   const [difficulty, setDifficulty] = useState<Difficulty>("medium");
 
   const dialogRef = useRef<HTMLDivElement | null>(null);
-  const firstFieldRef = useRef<HTMLInputElement | null>(null);
 
-  // Basic focus handling when opening
+  // Handle Escape key
   useEffect(() => {
     if (open) {
-      setTimeout(() => firstFieldRef.current?.focus(), 0);
       const onKeyDown = (e: KeyboardEvent) => {
         if (e.key === "Escape") onClose();
       };
@@ -40,12 +42,44 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
     }
   }, [open, onClose]);
 
-  // Load existing preferences on open
+  // Load *available* topics from the question service
+  useEffect(() => {
+    let ignore = false;
+    async function loadAvailableTopics() {
+      if (!open) return;
+      setTopicsLoading(true);
+      setTopicsError(null);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/api/question-service/questions/topics`
+        );
+        if (!res.ok) {
+          throw new Error(`Failed to load topics list (${res.status})`);
+        }
+        const data: string[] = await res.json();
+        if (!ignore) {
+          setAvailableTopics(data);
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        console.error("Load topics error", e);
+        if (!ignore) setTopicsError(e?.message ?? "Failed to load topics list");
+      } finally {
+        if (!ignore) setTopicsLoading(false);
+      }
+    }
+    loadAvailableTopics();
+    return () => {
+      ignore = true;
+    };
+  }, [open]);
+
+  // Load *existing user preferences* on open
   useEffect(() => {
     let ignore = false;
     async function load() {
       if (!open || !userId) return;
-      setInitialLoading(true);
+      setPrefsLoading(true);
       setError(null);
       try {
         console.log("load start", { open, userId });
@@ -57,7 +91,7 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
         console.log("load status", res.status);
         if (res.status === 404) {
           if (!ignore) {
-            setTopicsInput("");
+            setTopics([]);
             setDifficulty("medium");
           }
         } else if (!res.ok) {
@@ -66,17 +100,16 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
           const data: Preferences = await res.json();
           console.log("load data", data);
           if (!ignore) {
-            setTopicsInput(data.topics.join(", "));
+            setTopics(data.topics);
             setDifficulty(data.difficulty);
           }
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
-        // Explicitly type e as 'any' or 'Error'
         console.error("Load error", e);
         if (!ignore) setError(e?.message ?? "Failed to load preferences");
       } finally {
-        if (!ignore) setInitialLoading(false);
+        if (!ignore) setPrefsLoading(false);
       }
     }
     load();
@@ -84,15 +117,6 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
       ignore = true;
     };
   }, [open, userId]);
-
-  const topics = useMemo(
-    () =>
-      topicsInput
-        .split(",")
-        .map((t) => t.trim())
-        .filter((t) => t.length > 0),
-    [topicsInput]
-  );
 
   const canSave =
     topics.length > 0 &&
@@ -126,16 +150,20 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
       onClose();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
-      // Explicitly type e as 'any' or 'Error'
       setError(e?.message ?? "Failed to save preferences");
     } finally {
       setSaving(false);
     }
   }
 
+  function handleTopicToggle(topic: string) {
+    setTopics((prev) =>
+      prev.includes(topic) ? prev.filter((t) => t !== topic) : [...prev, topic]
+    );
+  }
+
   if (!open) return null;
 
-  // Define color classes for each difficulty level
   const difficultyColors = {
     easy: {
       selected: "bg-green-600 text-white border-green-500",
@@ -185,29 +213,54 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
           </p>
         </div>
 
-        {initialLoading ? (
+        {prefsLoading ? (
           <div className="text-sm text-blue-300">Loading preferences…</div>
         ) : (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-blue-200 mb-1">
-                Topics
-              </label>
-              <input
-                ref={firstFieldRef}
-                type="text"
-                className="w-full rounded-md border border-blue-800/40 bg-slate-900/50 px-3 py-2 text-white placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-600"
-                placeholder="e.g., React, TypeScript, Algorithms"
-                value={topicsInput}
-                onChange={(e) => setTopicsInput(e.target.value)}
-              />
-              <p className="mt-1 text-xs text-blue-300">
-                Comma-separated. Example: React, TypeScript, SQL
-              </p>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-blue-200">
+                  Topics
+                </label>
+              </div>
+
+              {/* === TOPIC SELECTION UI === */}
+              {topicsLoading ? (
+                <div className="text-sm text-blue-300">Loading topics...</div>
+              ) : topicsError ? (
+                <div className="text-sm text-rose-300">{topicsError}</div>
+              ) : (
+                <div
+                  id="topics-container"
+                  className={[
+                    "flex flex-wrap gap-2 overflow-y-auto pr-2 transition-all duration-300 pretty-scrollbar max-h-40",
+                  ].join(" ")}
+                >
+                  {availableTopics.map((topic) => {
+                    const isSelected = topics.includes(topic);
+                    return (
+                      <button
+                        key={topic}
+                        type="button"
+                        onClick={() => handleTopicToggle(topic)}
+                        className={[
+                          "rounded-full px-3 py-1 text-sm font-medium border transition-colors",
+                          isSelected
+                            ? "bg-green-700 text-white border-green-500"
+                            : "bg-slate-900/50 text-blue-300 border-blue-800/40 hover:bg-slate-800/50",
+                        ].join(" ")}
+                        aria-pressed={isSelected}
+                      >
+                        {topic}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-blue-200 mb-1">
+              <label className="block text-sm font-medium text-blue-200 mb-2">
                 Difficulty
               </label>
               <div className="grid grid-cols-3 gap-2">
@@ -253,7 +306,7 @@ export function PreferenceModal({ userId, open, onClose, onSaved }: Props) {
           <button
             type="button"
             onClick={handleSave}
-            disabled={!canSave || saving || initialLoading}
+            disabled={!canSave || saving || prefsLoading || topicsLoading}
             className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
           >
             {saving ? "Saving..." : "Save Preferences"}

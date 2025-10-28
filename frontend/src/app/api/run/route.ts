@@ -7,14 +7,13 @@ export const runtime = "nodejs";
 type Payload = {
   language: "python" | "javascript";
   code: string;
-  tests?: string; // optional: simple harness per language
 };
 
 const PISTON_URL = process.env.PISTON_URL ?? "http://localhost:2000";
 
 export async function POST(req: NextRequest) {
   try {
-    const { language, code, tests } = (await req.json()) as Payload;
+    const { language, code } = (await req.json()) as Payload;
     const cfg = languageConfigs[language];
     if (!cfg)
       return NextResponse.json(
@@ -22,10 +21,10 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
 
-    const files = cfg.files(code, tests);
+    const files = cfg.files(code);
 
     // Piston execute
-    const r = await fetch(`${PISTON_URL}/api/v2/execute`, {
+    const r = await fetch(`${PISTON_URL}/api/v2/piston/execute`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -39,21 +38,11 @@ export async function POST(req: NextRequest) {
     });
 
     const data = await r.json();
-
     // Our harnesses print JSON to stdout
-    const out = String(data?.run?.stdout || data?.run?.stderr || "").trim();
-    let results: any[] = [];
-    try {
-      results = JSON.parse(out).results ?? [];
-    } catch {
-      /* fallthrough */
-    }
-
-    const summary = {
-      passed: results.filter((x) => x.pass).length,
-      total: results.length,
-    };
-    return NextResponse.json({ ok: true, summary, results, raw: data });
+    const output = String(
+      data?.run?.stdout || data?.run?.stderr || data?.run?.output
+    ).trim();
+    return NextResponse.json({ ok: true, raw: data, output });
   } catch (e: any) {
     return NextResponse.json(
       { ok: false, error: String(e?.message || e) },

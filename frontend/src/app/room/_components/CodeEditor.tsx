@@ -98,7 +98,6 @@ export default function CodeEditor({ sessionId, question }: Props) {
         body: JSON.stringify({
           language: langConfig.apiLang,
           code: ytextRef.current.toString(),
-          tests: langConfig.testTemplate,
         }),
       });
       const data = await res.json();

@@ -198,6 +198,13 @@ describe("Header", () => {
       expect(screen.getByTestId("user-icon")).toBeInTheDocument();
     });
 
+    it("renders Match History menu item", () => {
+      render(<Header />);
+
+      expect(screen.getByText("Match History")).toBeInTheDocument();
+      expect(screen.getByTestId("history-icon")).toBeInTheDocument();
+    });
+
     it("renders Log out menu item", () => {
       render(<Header />);
 
@@ -212,11 +219,18 @@ describe("Header", () => {
       expect(profileLink).toHaveAttribute("href", "/profile");
     });
 
-    it("renders dropdown separator", () => {
+    it("Match History link points to /matchhistory", () => {
+      render(<Header />);
+
+      const historyLink = screen.getByText("Match History").closest("a");
+      expect(historyLink).toHaveAttribute("href", "/matchhistory");
+    });
+
+    it("renders dropdown separators", () => {
       render(<Header />);
 
       const separators = screen.getAllByTestId("dropdown-separator");
-      expect(separators.length).toBeGreaterThanOrEqual(2); // ✅ at least two separators
+      expect(separators).toHaveLength(2);
     });
   });
 
