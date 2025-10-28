@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { Header } from "../Header";
+import Header from "../Header";
 import { signOut } from "@/lib/auth";
 
 // Mock dependencies
@@ -11,6 +11,7 @@ jest.mock("next/link", () => {
 });
 
 jest.mock("lucide-react", () => ({
+  __esModule: true,
   Code2: () => <svg data-testid="code2-icon" />,
   User: () => <svg data-testid="user-icon" />,
   LogOut: () => <svg data-testid="logout-icon" />,
@@ -26,10 +27,12 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 jest.mock("../SoloPracticeButton", () => ({
-  SoloPracticeButton: () => <button>Solo Practice</button>,
+  __esModule: true,
+  default: () => <button>Solo Practice</button>,
 }));
 
 jest.mock("@/components/ui/button", () => ({
+  __esModule: true,
   Button: ({
     children,
     className,
@@ -47,6 +50,7 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/components/ui/avatar", () => ({
+  __esModule: true,
   Avatar: ({
     children,
     className,
@@ -63,6 +67,7 @@ jest.mock("@/components/ui/avatar", () => ({
 }));
 
 jest.mock("@/components/ui/dropdown-menu", () => ({
+  __esModule: true,
   DropdownMenu: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),

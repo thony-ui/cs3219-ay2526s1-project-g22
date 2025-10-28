@@ -48,7 +48,7 @@ describe("Sessions Routes - Unit Tests", () => {
 
     const mockSession = {
       id: "session-123",
-      interviewer_id: "testinterviewr",
+      // interviewer_id: "testinterviewr",
       interviewee_id: "user-456",
       question_id: "question-123",
       current_code: "",
@@ -69,7 +69,7 @@ describe("Sessions Routes - Unit Tests", () => {
       );
     });
 
-    it("should create a new session successfully", async () => {
+    it("should create a new solo session successfully", async () => {
       const response = await request(app).post("/sessions").send({
         interviewee_id: "user-456",
       });
@@ -78,7 +78,7 @@ describe("Sessions Routes - Unit Tests", () => {
       expect(response.body).toEqual(mockSession);
       expect(global.fetch).toHaveBeenCalled();
       expect(sessionsService.createSession).toHaveBeenCalledWith(
-        "testinterviewr",
+        null,
         "user-456",
         "question-123",
         ""
@@ -103,6 +103,7 @@ describe("Sessions Routes - Unit Tests", () => {
       const initialCode = "console.log('Hello');";
 
       await request(app).post("/sessions").send({
+        interviewer_id: "testinterviewr",
         interviewee_id: "user-456",
         initial_code: initialCode,
       });
@@ -173,9 +174,7 @@ describe("Sessions Routes - Unit Tests", () => {
     });
 
     it("should handle question service network error", async () => {
-      (global.fetch as jest.Mock).mockRejectedValue(
-        new Error("Network error")
-      );
+      (global.fetch as jest.Mock).mockRejectedValue(new Error("Network error"));
 
       const response = await request(app).post("/sessions").send({
         interviewee_id: "user-456",
@@ -220,6 +219,7 @@ describe("Sessions Routes - Unit Tests", () => {
       });
 
       await request(app).post("/sessions").send({
+        interviewer_id: "testinterviewr",
         interviewee_id: "user-456",
       });
 

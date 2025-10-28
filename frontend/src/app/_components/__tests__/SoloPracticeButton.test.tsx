@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { SoloPracticeButton } from "../SoloPracticeButton";
+import SoloPracticeButton from "../SoloPracticeButton";
 import api from "@/lib/axios";
 
 // Mock dependencies
@@ -48,8 +48,9 @@ describe("SoloPracticeButton", () => {
     email: "john@example.com",
   };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.clearAllMocks();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     useUser.mockReturnValue({ user: mockUser });
   });
 
@@ -289,11 +290,15 @@ describe("SoloPracticeButton", () => {
       const button = screen.getByRole("button");
       fireEvent.click(button);
 
+      // Wait until the component has fully handled the rejection
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalled();
       });
 
-      expect(mockPush).not.toHaveBeenCalled();
+      // Wait another tick to flush any async tasks
+      await waitFor(() => {
+        expect(mockPush).not.toHaveBeenCalled();
+      });
 
       consoleErrorSpy.mockRestore();
     });
