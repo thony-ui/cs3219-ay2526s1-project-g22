@@ -9,6 +9,7 @@ type Message = {
   sender_id: string;
   content: string;
   created_at: string; // ISO or timestamp string
+  deleted_at?: string | null;
 };
 
 export default function useChat(sessionId: string) {
@@ -16,38 +17,25 @@ export default function useChat(sessionId: string) {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<unknown>(null);
 
-  const lastSeenRef = useRef<number | undefined>(undefined);
   const pollingRef = useRef<number | null>(null);
 
   const fetchOnce = async () => {
     try {
-      const params: Record<string, unknown> = {};
-      if (lastSeenRef.current) params.since = lastSeenRef.current;
+      // Always fetch all messages (no 'since' parameter) to detect deletions
+      // The backend filters out deleted messages, so this will sync deletions
       const res = await axiosInstance.get(
-        `/api/chat-service/sessions/${sessionId}/chats`,
-        { params }
+        `/api/chat-service/sessions/${sessionId}/chats`
       );
       const data: Message[] = Array.isArray(res.data) ? res.data : [];
-      if (data.length > 0) {
-        // append dedup
-        setMessages((prev) => {
-          const seen = new Set(prev.map((m) => m.id));
-          const merged = [...prev];
-          data.forEach((m) => {
-            if (!seen.has(m.id)) merged.push(m);
-          });
-          return merged.sort(
-            (a, b) =>
-              new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime()
-          );
-        });
-        // update lastSeen
-        const maxTs = Math.max(
-          ...data.map((m) => new Date(m.created_at).getTime())
-        );
-        lastSeenRef.current = maxTs;
-      }
+
+      // Replace the entire message list with the fresh data from server
+      // This ensures deleted messages are removed
+      setMessages(
+        data.sort(
+          (a, b) =>
+            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        )
+      );
     } catch (e) {
       setError(e);
     }
@@ -89,5 +77,19 @@ export default function useChat(sessionId: string) {
     await fetchOnce();
   };
 
-  return { messages, sendMessage, isSending, error, refresh };
+  const deleteMessage = async (messageId: string) => {
+    try {
+      await axiosInstance.delete(
+        `/api/chat-service/sessions/${sessionId}/chats/${messageId}`
+      );
+      // Optimistically remove from UI
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      return true;
+    } catch (e) {
+      setError(e);
+      throw e;
+    }
+  };
+
+  return { messages, sendMessage, isSending, error, refresh, deleteMessage };
 }

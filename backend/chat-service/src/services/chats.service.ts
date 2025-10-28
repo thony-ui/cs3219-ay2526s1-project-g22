@@ -8,6 +8,7 @@ export type ChatRow = {
   role?: string | null;
   metadata?: any;
   created_at: string;
+  deleted_at?: string | null;
 };
 
 export async function fetchChats(
@@ -19,6 +20,7 @@ export async function fetchChats(
     .from("chats")
     .select("*")
     .eq("session_id", sessionId)
+    .is("deleted_at", null) // Only fetch non-deleted messages
     .order("created_at", { ascending: true });
 
   if (since) {
@@ -83,4 +85,44 @@ export async function isParticipant(
   if (error) throw new Error(error.message);
   if (!data) return false;
   return data.interviewer_id === userId || data.interviewee_id === userId;
+}
+
+// Delete a chat message (soft delete)
+export async function deleteChat(
+  chatId: string,
+  sessionId: string,
+  userId: string
+): Promise<void> {
+  // 1. Fetch the chat to verify it exists and belongs to this session
+  const { data: chat, error: fetchError } = await supabase
+    .from("chats")
+    .select("id, session_id, sender_id, deleted_at")
+    .eq("id", chatId)
+    .single();
+
+  if (fetchError) throw new Error(fetchError.message);
+  if (!chat) throw new Error("Chat message not found");
+
+  // 2. Verify the message belongs to the specified session
+  if (chat.session_id !== sessionId) {
+    throw new Error("Chat message does not belong to this session");
+  }
+
+  // 3. Verify the user is the sender of the message
+  if (chat.sender_id !== userId) {
+    throw new Error("Unauthorized: You can only delete your own messages");
+  }
+
+  // 4. Check if already deleted
+  if (chat.deleted_at) {
+    throw new Error("Message already deleted");
+  }
+
+  // 5. Soft delete by setting deleted_at timestamp
+  const { error: deleteError } = await supabase
+    .from("chats")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", chatId);
+
+  if (deleteError) throw new Error(deleteError.message);
 }

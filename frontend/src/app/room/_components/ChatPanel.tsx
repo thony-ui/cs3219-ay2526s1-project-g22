@@ -28,11 +28,15 @@ export default function ChatPanel({
     else setInternalCollapsed(v);
   };
   const userId = user?.id;
-  const { messages, sendMessage, isSending, error, refresh } =
+  const { messages, sendMessage, isSending, error, refresh, deleteMessage } =
     useChat(sessionId);
   const [value, setValue] = useState("");
   const listRef = useRef<HTMLDivElement | null>(null);
   const atBottomRef = useRef(true);
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [deletingMessageId, setDeletingMessageId] = useState<string | null>(
+    null
+  );
 
   useEffect(() => {
     const el = listRef.current;
@@ -64,6 +68,26 @@ export default function ChatPanel({
       setTimeout(() => refresh(), 300);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleDelete = async (messageId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+
+    const confirmed = confirm("Are you sure you want to delete this message?");
+    if (!confirmed) return;
+
+    setDeletingMessageId(messageId);
+    try {
+      await deleteMessage(messageId);
+      // Message is already removed optimistically by the hook
+    } catch (e) {
+      console.error("Failed to delete message:", e);
+      alert("Failed to delete message. Please try again.");
+      // Refresh to restore the message in UI if deletion failed
+      refresh();
+    } finally {
+      setDeletingMessageId(null);
     }
   };
 
@@ -108,18 +132,32 @@ export default function ChatPanel({
       <div className="flex-1 overflow-y-auto p-3 pb-24 space-y-3" ref={listRef}>
         {messages.map((m) => {
           const mine = m.sender_id === userId;
+          const isDeleting = deletingMessageId === m.id;
+
           return (
             <div
               key={m.id}
               className={`flex ${mine ? "justify-end" : "justify-start"}`}
+              onMouseEnter={() => setHoveredMessageId(m.id)}
+              onMouseLeave={() => setHoveredMessageId(null)}
             >
               <div
                 className={`max-w-[80%] px-3 py-2 rounded-lg text-sm whitespace-pre-wrap break-words break-all overflow-hidden ${
                   mine ? "bg-blue-600 text-white" : "bg-slate-700/80 text-white"
-                }`}
+                } ${isDeleting ? "opacity-50" : ""}`}
               >
-                <div className="text-xs text-slate-200 opacity-80 mb-1">
-                  {mine ? "You" : m.sender_id}
+                <div className="text-xs text-slate-200 opacity-80 mb-1 flex items-center gap-2">
+                  <span>{mine ? "You" : m.sender_id}</span>
+                  {/* Delete link - only show on hover for own messages */}
+                  {mine && hoveredMessageId === m.id && !isDeleting && (
+                    <button
+                      onClick={(e) => handleDelete(m.id, e)}
+                      className="text-xs text-red-300 hover:text-red-100 active:text-red-200 transition-colors underline"
+                      aria-label="Delete message"
+                    >
+                      delete
+                    </button>
+                  )}
                 </div>
                 <div>{m.content}</div>
                 <div className="text-xs text-slate-300 opacity-70 mt-1 text-right">
