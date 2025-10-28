@@ -7,7 +7,8 @@ import {
   Timer as TimerIcon,
   Shuffle,
   X,
-  AlertCircle, ArrowLeft,
+  AlertCircle,
+  ArrowLeft,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,7 +22,7 @@ import {
 } from "@/components/ui/card";
 import { PreferenceModal } from "./components/PreferenceModal";
 import { useUser } from "@/contexts/user-context";
-import { Header } from "@/app/_components/Header";
+import Header from "@/app/_components/Header";
 import { createClient } from "@/lib/supabase/supabase-client";
 
 export default function MatchingPage() {
@@ -38,7 +39,10 @@ export default function MatchingPage() {
   const [openPrefs, setOpenPrefs] = useState(false);
   const { user } = useUser();
   const userId = user?.id;
-  const [proposal, setProposal] = useState<{ proposalId: string; opponentRejectionRate: number; } | null>(null);
+  const [proposal, setProposal] = useState<{
+    proposalId: string;
+    opponentRejectionRate: number;
+  } | null>(null);
   const [matchAccepted, setMatchAccepted] = useState(false);
 
   // State for Alert
@@ -69,7 +73,7 @@ export default function MatchingPage() {
 
     if (socketIsNeeded && !wsRef.current) {
       const wsUrl = `ws://localhost:6006/ws/matching/${encodeURIComponent(
-        userId,
+        userId
       )}`;
       const socket = new WebSocket(wsUrl);
       wsRef.current = socket;
@@ -223,104 +227,120 @@ export default function MatchingPage() {
     if (isSubmitting || !proposal) return;
     setIsSubmitting(true);
     try {
-        const supabase = createClient();
-        const { data: { session } } = await supabase.auth.getSession();
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-        if (!session) {
-            throw new Error("User not authenticated.");
+      if (!session) {
+        throw new Error("User not authenticated.");
+      }
+
+      const token = session.access_token;
+
+      const res = await fetch(
+        `http://localhost:8000/api/matching-service/proposals/${proposal.proposalId}/accept`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
-        
-        const token = session.access_token;
+      );
 
-        const res = await fetch(
-            `http://localhost:8000/api/matching-service/proposals/${proposal.proposalId}/accept`,
-            { 
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token}`
-                }
-            }
-        );
+      if (!res.ok) {
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: "Failed to accept match." }));
+        throw new Error(errorData.message);
+      }
 
-        if (!res.ok) {
-            const errorData = await res.json().catch(() => ({ message: 'Failed to accept match.' }));
-            throw new Error(errorData.message);
-        }
-
-        // Show a "Waiting for partner..." message
-        // setProposal(null); // Clear proposal
-        setAlertInfo({ message: "Match accepted! Waiting for your partner...", variant: "default" });
-        setMatchAccepted(true);
+      // Show a "Waiting for partner..." message
+      // setProposal(null); // Clear proposal
+      setAlertInfo({
+        message: "Match accepted! Waiting for your partner...",
+        variant: "default",
+      });
+      setMatchAccepted(true);
     } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-        setAlertInfo({ message: errorMessage, variant: "destructive" });
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred.";
+      setAlertInfo({ message: errorMessage, variant: "destructive" });
     } finally {
-        setIsSubmitting(false);
+      setIsSubmitting(false);
     }
   };
 
   const handleReject = async () => {
-      if (isSubmitting || !proposal) return;
-      setIsSubmitting(true);
-      try {
-          const supabase = createClient();
-          const { data: { session } } = await supabase.auth.getSession();
-  
-          if (!session) {
-              throw new Error("User not authenticated.");
-          }
-          
-          const token = session.access_token;
+    if (isSubmitting || !proposal) return;
+    setIsSubmitting(true);
+    try {
+      const supabase = createClient();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-          const res = await fetch(
-              `http://localhost:8000/api/matching-service/proposals/${proposal.proposalId}/reject`,
-              {
-                  method: "POST",
-                  headers: {
-                      "Authorization": `Bearer ${token}`
-                  }
-              }
-          );
-
-          if (!res.ok) {
-              const errorData = await res.json().catch(() => ({ message: 'Failed to reject match.' }));
-              throw new Error(errorData.message);
-          }
-
-          // User is not put back in queue automatically.
-          setProposal(null);
-          setAlertInfo({ message: "Match rejected. You can start a new search.", variant: "default" });
-      } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : "An unknown error occurred.";
-          setAlertInfo({ message: errorMessage, variant: "destructive" });
-      } finally {
-          setIsSubmitting(false);
+      if (!session) {
+        throw new Error("User not authenticated.");
       }
+
+      const token = session.access_token;
+
+      const res = await fetch(
+        `http://localhost:8000/api/matching-service/proposals/${proposal.proposalId}/reject`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const errorData = await res
+          .json()
+          .catch(() => ({ message: "Failed to reject match." }));
+        throw new Error(errorData.message);
+      }
+
+      // User is not put back in queue automatically.
+      setProposal(null);
+      setAlertInfo({
+        message: "Match rejected. You can start a new search.",
+        variant: "default",
+      });
+    } catch (err) {
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred.";
+      setAlertInfo({ message: errorMessage, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
-  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex flex-col">
-    <Header />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex flex-col">
+      <Header />
       <main className="flex flex-1 flex-col justify-center px-4 pb-4 pt-4 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-lg">
           <section>
             {!proposal && (
-            <div className="mb-4 flex justify-between">
-              <button
-                onClick={()=> router.back()}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors inline-flex items-center"
-              >
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                Back
-              </button>
-              <button
-                onClick={() => setOpenPrefs(true)}
-                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 transition-colors"
-                disabled={isMatching}
-              >
-                Preferences
-              </button>
-            </div>
+              <div className="mb-4 flex justify-between">
+                <button
+                  onClick={() => router.back()}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition-colors inline-flex items-center"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back
+                </button>
+                <button
+                  onClick={() => setOpenPrefs(true)}
+                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:opacity-70 transition-colors"
+                  disabled={isMatching}
+                >
+                  Preferences
+                </button>
+              </div>
             )}
 
             {/* --- Alert Rendering Logic --- */}
@@ -349,7 +369,9 @@ export default function MatchingPage() {
                       <div className="rounded-full bg-green-600/20 p-2">
                         <TimerIcon className="h-6 w-6 text-green-400" />
                       </div>
-                      <CardTitle className="text-white">Match Proposal</CardTitle>
+                      <CardTitle className="text-white">
+                        Match Proposal
+                      </CardTitle>
                     </div>
                     <span className="text-sm font-medium text-green-300">
                       Action Required
@@ -359,7 +381,9 @@ export default function MatchingPage() {
                 <CardContent>
                   <div className="mb-8 flex h-[104px] items-center justify-center">
                     <p className="text-center text-lg text-green-200">
-                      Your potential partner is rejected in {Math.round((proposal.opponentRejectionRate || 0) * 100)}% of their matches.
+                      Your potential partner is rejected in{" "}
+                      {Math.round((proposal.opponentRejectionRate || 0) * 100)}%
+                      of their matches.
                     </p>
                   </div>
 
@@ -396,7 +420,9 @@ export default function MatchingPage() {
                       <div className="rounded-full bg-blue-600/20 p-2">
                         <TimerIcon className="h-6 w-6 text-blue-400" />
                       </div>
-                      <CardTitle className="text-white">Live Matching</CardTitle>
+                      <CardTitle className="text-white">
+                        Live Matching
+                      </CardTitle>
                     </div>
                     <span
                       className={`text-sm font-medium ${

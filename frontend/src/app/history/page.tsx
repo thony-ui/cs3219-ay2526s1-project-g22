@@ -2,12 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { CardContent } from "@/components/ui/card";
-import { Header } from "../_components/Header";
+import Header from "../_components/Header";
 import HistoryTable from "./components/HistoryTable";
 import { HistoryData } from "./types/HistoryData";
 import axiosInstance from "@/lib/axios";
 import { Loader2 } from "lucide-react";
-import { fetchMockData } from "./lib/mocks";
 
 export default function HistoryPage() {
   const [data, setData] = useState<HistoryData[]>([]);

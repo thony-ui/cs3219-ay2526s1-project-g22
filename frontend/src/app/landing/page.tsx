@@ -19,7 +19,7 @@ import { useState } from "react";
 import { SignInForm } from "./_components/signin-form";
 import { SignUpForm } from "./_components/signup-form";
 import Footer from "../_components/Footer";
-import { SoloPracticeButton } from "../_components/SoloPracticeButton";
+import SoloPracticeButton from "../_components/SoloPracticeButton";
 
 export default function LandingPage() {
   const [displaySignUp, setDisplaySignUp] = useState(false);

@@ -26,6 +26,7 @@ jobs:
               name: "collaboration-service",
               folder: "backend/collaboration-service",
             }
+          - { name: "chat-service", folder: "backend/chat-service" }
 
     steps:
       - uses: actions/checkout@v4

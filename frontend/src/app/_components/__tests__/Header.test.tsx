@@ -137,6 +137,19 @@ describe("Header", () => {
 
       expect(screen.getByText("Solo Practice")).toBeInTheDocument();
     });
+
+    it("renders history button", () => {
+      render(<Header />);
+
+      expect(screen.getByText("History")).toBeInTheDocument();
+    });
+
+    it("history link points to /history", () => {
+      render(<Header />);
+
+      const historyLink = screen.getByText("History").closest("a");
+      expect(historyLink).toHaveAttribute("href", "/history");
+    });
   });
 
   describe("User avatar and dropdown", () => {
@@ -202,7 +215,8 @@ describe("Header", () => {
       render(<Header />);
 
       expect(screen.getByText("Match History")).toBeInTheDocument();
-      expect(screen.getByTestId("history-icon")).toBeInTheDocument();
+      const historyIcons = screen.getAllByTestId("history-icon");
+      expect(historyIcons.length).toBeGreaterThan(0);
     });
 
     it("renders Log out menu item", () => {
