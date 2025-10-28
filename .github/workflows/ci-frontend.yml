@@ -2,9 +2,11 @@ name: CI Frontend
 
 on:
   push:
-    branches: [master, "**/*"] # Previews on all branches
-  pull_request_target:
-    branches: ["master"] # Trigger on all pull requests targeting master
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
 
 jobs:
   deploy:
@@ -43,12 +45,3 @@ jobs:
           NEXT_PUBLIC_API_URL: "http://localhost:8000"
           NEXT_PUBLIC_URL: "http://localhost:3000"
         run: npm test -- --ci --coverage
-
-      - name: Build Frontend
-        working-directory: frontend
-        env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          NEXT_PUBLIC_API_URL: "http://localhost:8000"
-          NEXT_PUBLIC_URL: "http://localhost:3000"
-        run: npm run build
