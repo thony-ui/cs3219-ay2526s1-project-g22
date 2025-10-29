@@ -11,7 +11,8 @@
         "user-service",
         "collaboration-service",
         "question-service",
-        "matching-service"
+        "matching-service",
+        "chat-service"
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -86,7 +87,7 @@
     {
       "name": "chat-service",
       "image": "820976530674.dkr.ecr.ap-southeast-1.amazonaws.com/chat-service:latest",
-      "essential": false,
+      "essential": true,
       "memoryReservation": 128,
       "portMappings": [{ "containerPort": 6010, "hostPort": 6010 }],
       "logConfiguration": {
