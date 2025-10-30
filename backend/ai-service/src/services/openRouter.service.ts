@@ -1,6 +1,6 @@
 import config from "../config";
 
-interface ChatMessage {
+export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
 }
@@ -76,16 +76,16 @@ class OpenRouter {
     }
   }
 
-  public async getChatResponse(message: string): Promise<string> {
+  public async getChatResponse(userMessages: ChatMessage[]): Promise<string> {
     const systemPrompt = "You are a helpful assistant.";
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
-      { role: "user", content: message },
+      ...userMessages,
     ];
 
     const completion = await this.chat({
       model: "deepseek/deepseek-chat-v3.1:free", // Change to your desired model
-      messages: messages,
+      messages,
     });
 
     return completion.choices[0].message.content;
