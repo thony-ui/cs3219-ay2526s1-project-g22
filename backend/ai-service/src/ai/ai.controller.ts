@@ -2,7 +2,7 @@ import openrouter from '../services/openRouter.service';
 import { Request, Response } from "express";
 
 class AiController {
-  async handleChat(req: Request, res: Response) {
+  handleChat = async (req: Request, res: Response) => {
       try {
           const {message} = req.body;
 
