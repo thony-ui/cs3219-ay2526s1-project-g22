@@ -1,25 +1,25 @@
-import openrouter from '../services/openRouter.service';
-import { Request, Response } from "express";
+import openrouter, {ChatMessage} from '../services/openRouter.service';
+import { Request, Response } from 'express';
 
 class AiController {
-  handleChat = async (req: Request, res: Response) => {
-      try {
-          const {message} = req.body;
+    handleChat = async (req: Request, res: Response) => {
+        const { message } = req.body || {};
 
-          if (!message) {
-              return res.status(400).json({error: 'Message is required'});
-          }
+        if (!message) {
+            res.status(400).json({ error: 'Message is required' });
+            return;
+        }
 
-          // TODO: rate limit based on userId
+        const userMsg: ChatMessage[] = [{ role: 'user', content: message }];
 
-          const response = await openrouter.getChatResponse(message);
-
-          res.json({response});
-      } catch (error) {
-          console.error('Error handling chat:', error);
-          res.status(500).json({error: 'Internal Server Error'});
-      }
-  }
+        try {
+            const response = await openrouter.getChatResponse(userMsg);
+            res.status(200).json({ response });
+        } catch (error) {
+            console.error('Error handling chat:', error);
+            res.status(500).json({ error: 'Internal Server Error' });
+        }
+    };
 }
 
 export const aiController = new AiController();

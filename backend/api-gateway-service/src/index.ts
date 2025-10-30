@@ -33,6 +33,8 @@ const services: Record<string, string> = {
     process.env.QUESTION_SERVICE_URL || "http://localhost:6002",
   "matching-service":
     process.env.MATCHING_SERVICE_URL || "http://localhost:6006",
+  "ai-service":
+    process.env.AI_SERVICE_URL || "http://localhost:6020",
 };
 
 // Simple request log

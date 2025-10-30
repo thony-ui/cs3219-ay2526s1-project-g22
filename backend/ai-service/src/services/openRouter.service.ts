@@ -1,5 +1,3 @@
-import config from "../config";
-
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;
@@ -17,8 +15,10 @@ interface ChatCompletion {
  * OpenRouter class for handling API calls.
  */
 class OpenRouter {
-  private apiKey: string = config.openrouter.apiKey;
-  private baseUrl: string = config.openrouter.url;
+  private apiKey: string = process.env.OPENROUTER_API_KEY || "";
+  private baseUrl: string =
+    process.env.OPENROUTER_URL ||
+    "https://openrouter.ai/api/v1/chat/completions";
 
   /**
    * Creates an instance of the OpenRouter class.
@@ -40,57 +40,55 @@ class OpenRouter {
     model: string;
     messages: ChatMessage[];
   }): Promise<ChatCompletion> {
-
-    const url = `${this.baseUrl}/chat/completions`;
-
-    const body = JSON.stringify({
+    const body = {
       model: options.model,
       messages: options.messages,
-    });
+    };
 
     try {
-      const response = await fetch(url, {
+      const response = await fetch(this.baseUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           "Authorization": `Bearer ${this.apiKey}`,
-          // OpenRouter recommends these headers for monitoring and abuse prevention
           "HTTP-Referer": "http://localhost:3000",
-          "X-Title": "My Next.js App", // Change to your app's name
+          "X-Title": "My Next.js App",
         },
-        body: body,
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) {
-        // Handle API errors
         const errorData = await response.json();
         console.error("OpenRouter API Error:", errorData);
-        throw new Error(errorData.error?.message || "Failed to fetch from OpenRouter");
+        throw new Error(
+          errorData.error?.message || "Failed to fetch from OpenRouter"
+        );
       }
 
       return response.json() as Promise<ChatCompletion>;
-
     } catch (error) {
       console.error("Error calling OpenRouter:", error);
       throw error;
     }
   }
 
-  public async getChatResponse(userMessages: ChatMessage[]): Promise<string> {
-    const systemPrompt = "You are a helpful assistant.";
+  public async getChatResponse(
+    userMessages: ChatMessage[]
+  ): Promise<string> {
+    const model = process.env.OPENROUTER_MODEL || "deepseek/deepseek-r1-0528-qwen3-8b:free";
+    const systemPrompt = process.env.OPENROUTER_SYSTEM_PROMPT || "You are a helpful assistant.";
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },
       ...userMessages,
     ];
 
     const completion = await this.chat({
-      model: "deepseek/deepseek-chat-v3.1:free", // Change to your desired model
+      model: model,
       messages,
     });
 
     return completion.choices[0].message.content;
   }
-
 }
 
 if (!process.env.OPENROUTER_API_KEY) {
