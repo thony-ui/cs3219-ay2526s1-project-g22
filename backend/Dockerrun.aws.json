@@ -74,7 +74,7 @@
       "essential": true,
       "memoryReservation": 256,
       "portMappings": [{ "containerPort": 6006, "hostPort": 6006 }],
-      "links": ["redis"],
+      "links": ["redis", "collaboration-service", "question-service"],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
