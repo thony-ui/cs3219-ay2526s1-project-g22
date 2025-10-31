@@ -72,7 +72,10 @@ export default function MatchingPage() {
     const socketIsNeeded = (isMatching || proposal) && userId;
 
     if (socketIsNeeded && !wsRef.current) {
-      const wsUrl = `ws://localhost:6006/ws/matching/${encodeURIComponent(
+      const wsApiUrl = process.env
+        .NEXT_PUBLIC_API_URL!.replace(/^http(s?)/, "ws$1")
+        .replace(/\/$/, "");
+      const wsUrl = `${wsApiUrl}/api/matching-service/ws/matching/${encodeURIComponent(
         userId
       )}`;
       const socket = new WebSocket(wsUrl);
@@ -239,7 +242,7 @@ export default function MatchingPage() {
       const token = session.access_token;
 
       const res = await fetch(
-        `http://localhost:8000/api/matching-service/proposals/${proposal.proposalId}/accept`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/matching-service/proposals/${proposal.proposalId}/accept`,
         {
           method: "POST",
           headers: {
@@ -287,7 +290,7 @@ export default function MatchingPage() {
       const token = session.access_token;
 
       const res = await fetch(
-        `http://localhost:8000/api/matching-service/proposals/${proposal.proposalId}/reject`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/matching-service/proposals/${proposal.proposalId}/reject`,
         {
           method: "POST",
           headers: {
