@@ -1,47 +1,33 @@
 "use client";
 
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
-import CodeMirror from "@uiw/react-codemirror";
-import { javascript } from "@codemirror/lang-javascript";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { EditorView, keymap } from "@codemirror/view";
-import { indentOnInput, indentUnit } from "@codemirror/language";
-import { indentWithTab } from "@codemirror/commands";
-import { debounce } from "lodash";
-import { RealtimeChannel } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/supabase-client";
-import { AnyPayload, CodeUpdatePayload } from "../types/realtime";
 import { useUser } from "@/contexts/user-context";
 import axiosInstance from "@/lib/axios";
+import { createClient } from "@/lib/supabase/supabase-client";
 import { Question } from "@/queries/use-get-questions";
 import { languageMap } from "@/utils/language-config";
+import { indentWithTab } from "@codemirror/commands";
+import { javascript } from "@codemirror/lang-javascript";
+import { indentOnInput, indentUnit } from "@codemirror/language";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { EditorView, keymap } from "@codemirror/view";
+import { RealtimeChannel } from "@supabase/supabase-js";
+import CodeMirror from "@uiw/react-codemirror";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import RealtimeContext from "../contexts/realtime-context";
 import CodeEditorHeader from "./CodeEditorHeader";
 import CodeEditorLanguageSelectionAndRunButton from "./CodeEditorLanguageSelectionAndRunButton";
 import CodeEditorSubmissionResults from "./CodeEditorSubmissionResults";
-import RealtimeContext from "../contexts/realtime-context";
-import { useRouter } from "next/navigation";
 
 // --- YJS imports ---
-import * as Y from "yjs";
 import { yCollab } from "y-codemirror.next";
 import {
+  applyAwarenessUpdate,
   Awareness,
   encodeAwarenessUpdate,
-  applyAwarenessUpdate,
 } from "y-protocols/awareness";
+import * as Y from "yjs";
 
-interface CodeSnippet {
-  lang?: string;
-  language?: string;
-  code?: string;
-  content?: string;
-}
 interface SubmissionResult {
   language: string;
   [key: string]: unknown;
@@ -170,49 +156,65 @@ export default function CodeEditor({
         applyAwarenessUpdate(awarenessRef.current, update, "remote");
       });
 
-      // exit session for both users -- robust parsing + diagnostics
-      channel.on("broadcast", { event: "exit_session" }, (payload) => {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const raw = payload as any;
-          console.debug("realtime: exit_session raw payload", raw);
+      // send a vector update of the full document state to the new joiner
+      channel.on("broadcast", { event: "yjs-request-state" }, (payload) => {
+        const { from } = payload.payload;
+        if (!from || from === userId) return;
+        const update = Y.encodeStateAsUpdate(ydocRef.current);
+        channel.send({
+          type: "broadcast",
+          event: "yjs-sync",
+          payload: { update: Array.from(update), to: from },
+        });
+      });
 
-          // try a few common places where the sent payload may appear
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const maybe = raw.payload ?? raw.message ?? raw.data ?? raw;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const candidate = (maybe && (maybe.payload ?? maybe)) as any;
-
-          if (candidate && candidate.type === "end_session") {
-            console.info("received exit_session payload", {
-              sessionId,
-              from: candidate.from,
-            });
-            // If the payload includes a truthy `from` equal to our userId, it's our own
-            // broadcast and we should not re-run endSession. Otherwise run cleanup.
-            if (!(candidate.from && candidate.from === userId))
-              endSession(false);
-          }
-        } catch (err) {
-          console.warn("realtime: failed to handle exit_session payload", err);
+      // --- Apply full Yjs state received from peer ---
+      channel.on("broadcast", { event: "yjs-sync" }, (payload) => {
+        const { to, update } = payload.payload;
+        if (to === userId) {
+          Y.applyUpdate(ydocRef.current, new Uint8Array(update));
+          console.info("Applied full Yjs document state from peer");
         }
       });
 
+      channel.on(
+        "broadcast",
+        { event: "exit_session" },
+        (payload: { payload?: Record<string, unknown> }) => {
+          try {
+            const raw = payload.payload ?? {};
+            const candidate =
+              (raw.payload as Record<string, unknown> | undefined) ?? raw;
+
+            if (candidate?.type === "end_session") {
+              const from = candidate.from as string | undefined;
+              if (!from || from !== userId) endSession(false);
+            }
+          } catch (err) {
+            console.warn(
+              "realtime: failed to handle exit_session payload",
+              err
+            );
+          }
+        }
+      );
+
+      // subscribe
       const sub = await channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
-          try {
-            await channel.track({ userId });
-            console.info("realtime: subscribed to room channel", {
-              room: sessionId,
-              userId,
-            });
-          } catch (err) {
-            console.warn("realtime: track failed", err);
-          }
+          await channel.track({ userId });
+          console.info("Subscribed to room", sessionId);
+
+          // Always request the latest document from peers
+          channel.send({
+            type: "broadcast",
+            event: "yjs-request-state",
+            payload: { from: userId },
+          });
         }
       });
 
-      // broadcast local yjs doc update
+      // broadcast local yjs updates
       ydocRef.current.on("update", (update) => {
         channel.send({
           type: "broadcast",
@@ -233,11 +235,8 @@ export default function CodeEditor({
           updated: number[];
           removed: number[];
         }) => {
-          const changedClients = added.concat(updated, removed);
-          const update = encodeAwarenessUpdate(
-            awarenessRef.current,
-            changedClients
-          );
+          const changed = added.concat(updated, removed);
+          const update = encodeAwarenessUpdate(awarenessRef.current, changed);
           channel.send({
             type: "broadcast",
             event: "awareness-update",
@@ -246,14 +245,9 @@ export default function CodeEditor({
         }
       );
 
-      // init code
-      if (initialCode && ytextRef.current.length === 0) {
-        ytextRef.current.insert(0, initialCode);
-      }
-
       channelRef.current = channel;
 
-      // periodic persistence
+      // --- Periodic auto-save snapshot ---
       if (snapshotIntervalRef.current)
         clearInterval(snapshotIntervalRef.current);
       snapshotIntervalRef.current = setInterval(() => {
@@ -283,9 +277,9 @@ export default function CodeEditor({
         const initial =
           typeof session.current_code === "string" ? session.current_code : "";
         await joinRealtimeChannel(initial);
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (e: any) {
-        console.log(`Error: ${e.message || e}`);
+      } catch (e) {
+        const error = e instanceof Error ? e : new Error(String(e));
+        console.log(`Error: ${error.message}`);
       }
     }
     initSession();
@@ -349,6 +343,27 @@ export default function CodeEditor({
       yCollab(ytextRef.current, awarenessRef.current, { undoManager: false }),
     ];
   }, [selectedLanguage]);
+
+  // TEST ONLY: automatic cyclic typing in one tab
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.location.hash.includes("autotype")) return;
+
+    let i = 0;
+    const chars = "123456789";
+    const ytext = ytextRef.current;
+
+    const interval = setInterval(() => {
+      const char = chars[i % chars.length];
+      // Insert char at end
+      ytext.insert(ytext.length, char);
+      // Keep document short by deleting old chars
+      if (ytext.length > 500) ytext.delete(0, ytext.length - 50);
+      i++;
+    }, 300);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <RealtimeContext.Provider
