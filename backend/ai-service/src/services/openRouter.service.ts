@@ -65,7 +65,7 @@ class OpenRouter {
         );
       }
 
-      return response.json() as Promise<ChatCompletion>;
+      return await response.json()
     } catch (error) {
       console.error("Error calling OpenRouter:", error);
       throw error;
@@ -75,7 +75,7 @@ class OpenRouter {
   public async getChatResponse(
     userMessages: ChatMessage[]
   ): Promise<string> {
-    const model = process.env.OPENROUTER_MODEL || "deepseek/deepseek-r1-0528-qwen3-8b:free";
+    const model = process.env.OPENROUTER_MODEL || "deepseek/deepseek-v3.2-exp";
     const systemPrompt = process.env.OPENROUTER_SYSTEM_PROMPT || "You are a helpful assistant.";
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt },

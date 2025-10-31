@@ -402,33 +402,51 @@ export class MatchingService {
             }
 
             // Process all matches in parallel
-            return await Promise.all(historyArray.map(async (match) => {
-                const {session_id, match_id} = match;
-                const {
-                    interviewer_id,
-                    interviewee_id,
-                    status
-                } = await supabaseService.getCollaborationHistory(session_id);
+            const processedMatches = await Promise.all(
+              historyArray.map(async (match) => {
+                  if (!match || !match.session_id) {
+                      return null;
+                  }
 
-                let oppositeName: string;
-                let role: string;
+                  const { session_id, match_id } = match;
 
-                if (userId == interviewer_id) {
-                    oppositeName = await supabaseService.getUserName(interviewee_id);
-                    role = "interviewer";
-                } else {
-                    oppositeName = await supabaseService.getUserName(interviewer_id);
-                    role = "interviewee";
-                }
+                  const collaborationHistory = await supabaseService.getCollaborationHistory(session_id);
+                  if (!collaborationHistory) {
+                      return null;
+                  }
 
-                return {
-                    matchId: match_id,
-                    sessionId: session_id,
-                    role: role,
-                    status: status,
-                    oppositeName: oppositeName
-                };
-            }));
+                  const {
+                      interviewer_id,
+                      interviewee_id,
+                      status
+                  } = collaborationHistory;
+
+                  if (!interviewer_id || !interviewee_id) {
+                      return null;
+                  }
+
+                  let oppositeName: string | null;
+                  let role: string;
+
+                  if (userId == interviewer_id) {
+                      oppositeName = await supabaseService.getUserName(interviewee_id);
+                      role = "interviewer";
+                  } else {
+                      oppositeName = await supabaseService.getUserName(interviewer_id);
+                      role = "interviewee";
+                  }
+
+                  return {
+                      matchId: match_id ?? null, // Handle null match_id
+                      sessionId: session_id,
+                      role: role,
+                      status: status ?? 'unknown', // Default for null status
+                      oppositeName: oppositeName ?? 'Unknown User' // Default for null name
+                  };
+              })
+            );
+
+            return processedMatches.filter(match => match !== null);
 
         } catch (error) {
             logger.error(`Failed to get match history for user: ${userId}`, error);

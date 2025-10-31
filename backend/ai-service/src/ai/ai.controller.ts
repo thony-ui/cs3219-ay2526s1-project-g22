@@ -10,10 +10,13 @@ class AiController {
             return;
         }
 
+        console.log("Received message:", message);
+
         const userMsg: ChatMessage[] = [{ role: 'user', content: message }];
 
         try {
             const response = await openrouter.getChatResponse(userMsg);
+            console.log("AI response:", response);
             res.status(200).json({ response });
         } catch (error) {
             console.error('Error handling chat:', error);
