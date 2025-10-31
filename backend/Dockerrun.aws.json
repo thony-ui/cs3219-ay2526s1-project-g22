@@ -11,7 +11,8 @@
         "user-service",
         "collaboration-service",
         "question-service",
-        "matching-service"
+        "matching-service",
+        "chat-service"
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -43,6 +44,7 @@
       "essential": true,
       "memoryReservation": 256,
       "portMappings": [{ "containerPort": 6004, "hostPort": 6004 }],
+      "links": ["question-service"],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
@@ -73,13 +75,28 @@
       "essential": true,
       "memoryReservation": 256,
       "portMappings": [{ "containerPort": 6006, "hostPort": 6006 }],
-      "links": ["redis"],
+      "links": ["redis", "collaboration-service", "question-service"],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
           "awslogs-group": "/aws/elasticbeanstalk/peer-prep-backend",
           "awslogs-region": "ap-southeast-1",
           "awslogs-stream-prefix": "matching-service"
+        }
+      }
+    },
+    {
+      "name": "chat-service",
+      "image": "820976530674.dkr.ecr.ap-southeast-1.amazonaws.com/chat-service:latest",
+      "essential": true,
+      "memoryReservation": 128,
+      "portMappings": [{ "containerPort": 6010, "hostPort": 6010 }],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/aws/elasticbeanstalk/peer-prep-backend",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "chat-service"
         }
       }
     },

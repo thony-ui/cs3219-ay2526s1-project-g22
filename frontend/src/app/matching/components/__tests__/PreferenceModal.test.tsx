@@ -6,6 +6,8 @@ describe("PreferenceModal", () => {
   const mockOnSaved = jest.fn();
   const mockUserId = "test-user-123";
 
+  const mockTopics = ["Arrays", "Strings", "Dynamic Programming", "Graphs"];
+
   beforeEach(() => {
     jest.clearAllMocks();
     global.fetch = jest.fn();
@@ -29,9 +31,20 @@ describe("PreferenceModal", () => {
   });
 
   it("renders modal when open is true", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+    // Mock topics fetch
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      // preferences fetch - 404 for new user
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -53,17 +66,19 @@ describe("PreferenceModal", () => {
     ).toBeInTheDocument();
   });
 
-  it("loads existing preferences when modal opens", async () => {
-    const mockPreferences = {
-      userId: mockUserId,
-      topics: ["React", "TypeScript"],
-      difficulty: "hard" as const,
-    };
-
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 200,
-      ok: true,
-      json: async () => mockPreferences,
+  it("loads and displays available topics", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -77,25 +92,40 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        `http://localhost:8000/api/matching-service/preferences/${mockUserId}`
+        expect.stringContaining("/questions/topics")
       );
     });
 
     await waitFor(() => {
-      const input = screen.getByPlaceholderText(
-        "e.g., React, TypeScript, Algorithms"
-      ) as HTMLInputElement;
-      expect(input.value).toBe("React, TypeScript");
+      mockTopics.forEach((topic) => {
+        expect(screen.getByText(topic)).toBeInTheDocument();
+      });
     });
-
-    const hardButton = screen.getByRole("button", { name: "Hard" });
-    expect(hardButton).toHaveAttribute("aria-pressed", "true");
   });
 
-  it("handles 404 response by setting default values", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+  it("loads existing preferences when modal opens", async () => {
+    const mockPreferences = {
+      userId: mockUserId,
+      topics: ["Arrays", "Strings"],
+      difficulty: "hard" as const,
+    };
+
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      if (url.includes("/preferences/")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockPreferences,
+        });
+      }
+      return Promise.resolve({ status: 404, ok: false });
     });
 
     render(
@@ -108,18 +138,72 @@ describe("PreferenceModal", () => {
     );
 
     await waitFor(() => {
-      const input = screen.getByPlaceholderText(
-        "e.g., React, TypeScript, Algorithms"
-      ) as HTMLInputElement;
-      expect(input.value).toBe("");
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining(`/preferences/${mockUserId}`)
+      );
     });
 
-    const mediumButton = screen.getByRole("button", { name: "Medium" });
-    expect(mediumButton).toHaveAttribute("aria-pressed", "true");
+    await waitFor(() => {
+      const arraysButton = screen.getByRole("button", { name: "Arrays" });
+      expect(arraysButton).toHaveAttribute("aria-pressed", "true");
+
+      const stringsButton = screen.getByRole("button", { name: "Strings" });
+      expect(stringsButton).toHaveAttribute("aria-pressed", "true");
+    });
+
+    const hardButton = screen.getByRole("button", { name: "Hard" });
+    expect(hardButton).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("handles 404 response by setting default values", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
+    });
+
+    render(
+      <PreferenceModal
+        userId={mockUserId}
+        open={true}
+        onClose={mockOnClose}
+        onSaved={mockOnSaved}
+      />
+    );
+
+    await waitFor(() => {
+      const mediumButton = screen.getByRole("button", { name: "Medium" });
+      expect(mediumButton).toHaveAttribute("aria-pressed", "true");
+    });
+
+    // All topic buttons should be unselected
+    await waitFor(() => {
+      mockTopics.forEach((topic) => {
+        const button = screen.getByRole("button", { name: topic });
+        expect(button).toHaveAttribute("aria-pressed", "false");
+      });
+    });
   });
 
   it("displays error when loading preferences fails", async () => {
-    (global.fetch as jest.Mock).mockRejectedValue(new Error("Network error"));
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.reject(new Error("Network error"));
+    });
 
     render(
       <PreferenceModal
@@ -135,20 +219,56 @@ describe("PreferenceModal", () => {
     });
   });
 
-  it("displays loading state while fetching preferences", async () => {
-    (global.fetch as jest.Mock).mockImplementation(
-      () =>
-        new Promise((resolve) =>
-          setTimeout(
-            () =>
-              resolve({
-                status: 404,
-                ok: false,
-              }),
-            100
-          )
-        )
+  it("displays error when loading topics fails", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 404,
+          ok: false,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
+    });
+
+    render(
+      <PreferenceModal
+        userId={mockUserId}
+        open={true}
+        onClose={mockOnClose}
+        onSaved={mockOnSaved}
+      />
     );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Failed to load topics list (404)")
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("displays loading state while fetching preferences", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve({
+              status: 404,
+              ok: false,
+            }),
+          100
+        )
+      );
+    });
 
     render(
       <PreferenceModal
@@ -168,10 +288,19 @@ describe("PreferenceModal", () => {
     });
   });
 
-  it("updates topics input when user types", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+  it("toggles topic selection when topic button is clicked", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -185,23 +314,37 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
+        screen.getByRole("button", { name: "Arrays" })
       ).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    ) as HTMLInputElement;
+    const arraysButton = screen.getByRole("button", { name: "Arrays" });
 
-    fireEvent.change(input, { target: { value: "React, Node.js" } });
+    // Initially not selected
+    expect(arraysButton).toHaveAttribute("aria-pressed", "false");
 
-    expect(input.value).toBe("React, Node.js");
+    // Click to select
+    fireEvent.click(arraysButton);
+    expect(arraysButton).toHaveAttribute("aria-pressed", "true");
+
+    // Click again to deselect
+    fireEvent.click(arraysButton);
+    expect(arraysButton).toHaveAttribute("aria-pressed", "false");
   });
 
   it("changes difficulty when difficulty button is clicked", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -234,9 +377,18 @@ describe("PreferenceModal", () => {
   });
 
   it("closes modal when Cancel button is clicked", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -261,9 +413,18 @@ describe("PreferenceModal", () => {
   });
 
   it("closes modal when Escape key is pressed", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -284,10 +445,19 @@ describe("PreferenceModal", () => {
     expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
-  it("disables Save button when topics are empty", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+  it("disables Save button when no topics are selected", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -312,10 +482,19 @@ describe("PreferenceModal", () => {
     expect(saveButton.disabled).toBe(true);
   });
 
-  it("enables Save button when topics are provided", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
+  it("enables Save button when at least one topic is selected", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
+        status: 404,
+        ok: false,
+      });
     });
 
     render(
@@ -329,14 +508,12 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
+        screen.getByRole("button", { name: "Arrays" })
       ).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    );
-    fireEvent.change(input, { target: { value: "React" } });
+    const arraysButton = screen.getByRole("button", { name: "Arrays" });
+    fireEvent.click(arraysButton);
 
     const saveButton = screen.getByRole("button", {
       name: "Save Preferences",
@@ -348,20 +525,30 @@ describe("PreferenceModal", () => {
   it("saves preferences successfully", async () => {
     const savedPreferences = {
       userId: mockUserId,
-      topics: ["React", "TypeScript"],
+      topics: ["Arrays", "Strings"],
       difficulty: "medium" as const,
     };
 
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
+    (global.fetch as jest.Mock).mockImplementation((url, options) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      if (url.includes("/preferences/") && options?.method === "POST") {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => savedPreferences,
+        });
+      }
+      return Promise.resolve({
         status: 404,
         ok: false,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        ok: true,
-        json: async () => savedPreferences,
       });
+    });
 
     render(
       <PreferenceModal
@@ -374,14 +561,13 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
+        screen.getByRole("button", { name: "Arrays" })
       ).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    );
-    fireEvent.change(input, { target: { value: "React, TypeScript" } });
+    // Select topics
+    fireEvent.click(screen.getByRole("button", { name: "Arrays" }));
+    fireEvent.click(screen.getByRole("button", { name: "Strings" }));
 
     const saveButton = screen.getByRole("button", {
       name: "Save Preferences",
@@ -390,15 +576,15 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledWith(
-        `http://localhost:8000/api/matching-service/preferences/${mockUserId}`,
-        {
+        expect.stringContaining(`/preferences/${mockUserId}`),
+        expect.objectContaining({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            topics: ["React", "TypeScript"],
+            topics: ["Arrays", "Strings"],
             difficulty: "medium",
           }),
-        }
+        })
       );
     });
 
@@ -409,12 +595,22 @@ describe("PreferenceModal", () => {
   });
 
   it("displays error when save fails", async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
+    (global.fetch as jest.Mock).mockImplementation((url, options) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      if (options?.method === "POST") {
+        return Promise.reject(new Error("Save failed"));
+      }
+      return Promise.resolve({
         status: 404,
         ok: false,
-      })
-      .mockRejectedValueOnce(new Error("Save failed"));
+      });
+    });
 
     render(
       <PreferenceModal
@@ -427,14 +623,11 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
+        screen.getByRole("button", { name: "Arrays" })
       ).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    );
-    fireEvent.change(input, { target: { value: "React" } });
+    fireEvent.click(screen.getByRole("button", { name: "Arrays" }));
 
     const saveButton = screen.getByRole("button", {
       name: "Save Preferences",
@@ -450,16 +643,26 @@ describe("PreferenceModal", () => {
   });
 
   it("displays validation error from server", async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
+    (global.fetch as jest.Mock).mockImplementation((url, options) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      if (options?.method === "POST") {
+        return Promise.resolve({
+          status: 400,
+          ok: false,
+          text: async () => "Invalid topics",
+        });
+      }
+      return Promise.resolve({
         status: 404,
         ok: false,
-      })
-      .mockResolvedValueOnce({
-        status: 400,
-        ok: false,
-        text: async () => "Invalid topics",
       });
+    });
 
     render(
       <PreferenceModal
@@ -472,14 +675,11 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
+        screen.getByRole("button", { name: "Arrays" })
       ).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    );
-    fireEvent.change(input, { target: { value: "React" } });
+    fireEvent.click(screen.getByRole("button", { name: "Arrays" }));
 
     const saveButton = screen.getByRole("button", {
       name: "Save Preferences",
@@ -492,29 +692,36 @@ describe("PreferenceModal", () => {
   });
 
   it("shows Saving... text while saving", async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
+    (global.fetch as jest.Mock).mockImplementation((url, options) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      if (options?.method === "POST") {
+        return new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                status: 200,
+                ok: true,
+                json: async () => ({
+                  userId: mockUserId,
+                  topics: ["Arrays"],
+                  difficulty: "medium",
+                }),
+              }),
+            100
+          )
+        );
+      }
+      return Promise.resolve({
         status: 404,
         ok: false,
-      })
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(
-              () =>
-                resolve({
-                  status: 200,
-                  ok: true,
-                  json: async () => ({
-                    userId: mockUserId,
-                    topics: ["React"],
-                    difficulty: "medium",
-                  }),
-                }),
-              100
-            )
-          )
-      );
+      });
+    });
 
     render(
       <PreferenceModal
@@ -527,14 +734,11 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
+        screen.getByRole("button", { name: "Arrays" })
       ).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    );
-    fireEvent.change(input, { target: { value: "React" } });
+    fireEvent.click(screen.getByRole("button", { name: "Arrays" }));
 
     const saveButton = screen.getByRole("button", {
       name: "Save Preferences",
@@ -551,29 +755,36 @@ describe("PreferenceModal", () => {
   });
 
   it("disables buttons while saving", async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
+    (global.fetch as jest.Mock).mockImplementation((url, options) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      if (options?.method === "POST") {
+        return new Promise((resolve) =>
+          setTimeout(
+            () =>
+              resolve({
+                status: 200,
+                ok: true,
+                json: async () => ({
+                  userId: mockUserId,
+                  topics: ["Arrays"],
+                  difficulty: "medium",
+                }),
+              }),
+            100
+          )
+        );
+      }
+      return Promise.resolve({
         status: 404,
         ok: false,
-      })
-      .mockImplementationOnce(
-        () =>
-          new Promise((resolve) =>
-            setTimeout(
-              () =>
-                resolve({
-                  status: 200,
-                  ok: true,
-                  json: async () => ({
-                    userId: mockUserId,
-                    topics: ["React"],
-                    difficulty: "medium",
-                  }),
-                }),
-              100
-            )
-          )
-      );
+      });
+    });
 
     render(
       <PreferenceModal
@@ -586,14 +797,11 @@ describe("PreferenceModal", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
+        screen.getByRole("button", { name: "Arrays" })
       ).toBeInTheDocument();
     });
 
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    );
-    fireEvent.change(input, { target: { value: "React" } });
+    fireEvent.click(screen.getByRole("button", { name: "Arrays" }));
 
     const saveButton = screen.getByRole("button", {
       name: "Save Preferences",
@@ -611,66 +819,19 @@ describe("PreferenceModal", () => {
     });
   });
 
-  it("trims and filters topics correctly", async () => {
-    (global.fetch as jest.Mock)
-      .mockResolvedValueOnce({
+  it("has correct accessibility attributes", async () => {
+    (global.fetch as jest.Mock).mockImplementation((url) => {
+      if (url.includes("/topics")) {
+        return Promise.resolve({
+          status: 200,
+          ok: true,
+          json: async () => mockTopics,
+        });
+      }
+      return Promise.resolve({
         status: 404,
         ok: false,
-      })
-      .mockResolvedValueOnce({
-        status: 200,
-        ok: true,
-        json: async () => ({
-          userId: mockUserId,
-          topics: ["React", "TypeScript"],
-          difficulty: "medium",
-        }),
       });
-
-    render(
-      <PreferenceModal
-        userId={mockUserId}
-        open={true}
-        onClose={mockOnClose}
-        onSaved={mockOnSaved}
-      />
-    );
-
-    await waitFor(() => {
-      expect(
-        screen.getByPlaceholderText("e.g., React, TypeScript, Algorithms")
-      ).toBeInTheDocument();
-    });
-
-    const input = screen.getByPlaceholderText(
-      "e.g., React, TypeScript, Algorithms"
-    );
-    fireEvent.change(input, {
-      target: { value: " React , , TypeScript , " },
-    });
-
-    const saveButton = screen.getByRole("button", {
-      name: "Save Preferences",
-    });
-    fireEvent.click(saveButton);
-
-    await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledWith(
-        expect.any(String),
-        expect.objectContaining({
-          body: JSON.stringify({
-            topics: ["React", "TypeScript"],
-            difficulty: "medium",
-          }),
-        })
-      );
-    });
-  });
-
-  it("has correct accessibility attributes", async () => {
-    (global.fetch as jest.Mock).mockResolvedValue({
-      status: 404,
-      ok: false,
     });
 
     render(

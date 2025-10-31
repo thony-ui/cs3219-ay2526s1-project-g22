@@ -11,7 +11,7 @@ interface SoloPracticeButtonProps extends ButtonProps {
   onRequireLogin?: () => void;
 }
 
-export function SoloPracticeButton({
+export default function SoloPracticeButton({
   intervieweeId,
   onRequireLogin,
   ...props
@@ -25,16 +25,15 @@ export function SoloPracticeButton({
       onRequireLogin?.();
       return;
     }
+    setIsLoading(true);
 
     try {
-      setIsLoading(true);
-
-      // use the configured Axios instance (with Supabase JWT interceptor)
       const res = await api.post("/api/collaboration-service/sessions", {
         interviewee_id: user.id,
       });
 
-      const sessionId = res.data?.id;
+      const sessionId = res?.data?.id;
+
       if (!sessionId) {
         console.error("No session_id returned from backend");
         return;
@@ -43,6 +42,7 @@ export function SoloPracticeButton({
       router.push(`/room/${sessionId}`);
     } catch (err) {
       console.error("Failed to create solo session:", err);
+      return;
     } finally {
       setIsLoading(false);
     }

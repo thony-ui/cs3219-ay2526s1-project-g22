@@ -47,7 +47,7 @@ describe("CodeEditorSubmissionResults", () => {
     const mockHistory = [
       {
         language: "JavaScript",
-        results: [{ pass: true }, { pass: false }],
+        output: "Test output",
       },
     ];
 
@@ -60,7 +60,7 @@ describe("CodeEditorSubmissionResults", () => {
     const mockHistory = [
       {
         language: "Python",
-        results: [{ pass: true }],
+        output: "Test output",
       },
     ];
 
@@ -73,7 +73,7 @@ describe("CodeEditorSubmissionResults", () => {
     const mockHistory = [
       {
         language: "JavaScript",
-        results: [{ pass: true }],
+        output: "Test output",
       },
     ];
 
@@ -82,41 +82,28 @@ describe("CodeEditorSubmissionResults", () => {
     expect(screen.getByText("#1")).toBeInTheDocument();
   });
 
-  it("displays passed count correctly", () => {
+  it("displays submission output", () => {
     const mockHistory = [
       {
         language: "JavaScript",
-        results: [{ pass: true }, { pass: true }, { pass: false }],
+        output: "Test output message",
       },
     ];
 
     render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
 
-    expect(screen.getByText("Passed: 2")).toBeInTheDocument();
-  });
-
-  it("displays failed count correctly", () => {
-    const mockHistory = [
-      {
-        language: "JavaScript",
-        results: [{ pass: true }, { pass: false }, { pass: false }],
-      },
-    ];
-
-    render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
-
-    expect(screen.getByText("Failed: 2")).toBeInTheDocument();
+    expect(screen.getByText("Test output message")).toBeInTheDocument();
   });
 
   it("displays multiple submissions", () => {
     const mockHistory = [
       {
         language: "JavaScript",
-        results: [{ pass: true }],
+        output: "Output 1",
       },
       {
         language: "Python",
-        results: [{ pass: false }],
+        output: "Output 2",
       },
     ];
 
@@ -129,7 +116,7 @@ describe("CodeEditorSubmissionResults", () => {
   it("displays only last 5 submissions in reverse order", () => {
     const mockHistory = Array.from({ length: 7 }, (_, i) => ({
       language: `Lang${i + 1}`,
-      results: [{ pass: true }],
+      output: `Output ${i + 1}`,
     }));
 
     render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
@@ -146,95 +133,37 @@ describe("CodeEditorSubmissionResults", () => {
     expect(screen.queryByText("Lang2")).not.toBeInTheDocument();
   });
 
-  it("handles submission with no results", () => {
+  it("handles submission with undefined output", () => {
     const mockHistory = [
       {
         language: "JavaScript",
-        results: undefined,
+        output: undefined,
       },
     ];
 
     render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
 
-    expect(screen.getByText("Passed: 0")).toBeInTheDocument();
-    expect(screen.getByText("Failed: 0")).toBeInTheDocument();
+    expect(screen.getByText("JavaScript")).toBeInTheDocument();
   });
 
-  it("handles submission with empty results array", () => {
+  it("handles submission with empty string output", () => {
     const mockHistory = [
       {
         language: "JavaScript",
-        results: [],
+        output: "",
       },
     ];
 
     render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
 
-    expect(screen.getByText("Passed: 0")).toBeInTheDocument();
-    expect(screen.getByText("Failed: 0")).toBeInTheDocument();
-  });
-
-  it("handles submission with all passing tests", () => {
-    const mockHistory = [
-      {
-        language: "Python",
-        results: [{ pass: true }, { pass: true }, { pass: true }],
-      },
-    ];
-
-    render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
-
-    expect(screen.getByText("Passed: 3")).toBeInTheDocument();
-    expect(screen.getByText("Failed: 0")).toBeInTheDocument();
-  });
-
-  it("handles submission with all failing tests", () => {
-    const mockHistory = [
-      {
-        language: "Python",
-        results: [{ pass: false }, { pass: false }],
-      },
-    ];
-
-    render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
-
-    expect(screen.getByText("Passed: 0")).toBeInTheDocument();
-    expect(screen.getByText("Failed: 2")).toBeInTheDocument();
-  });
-
-  it("applies correct styling to passed count", () => {
-    const mockHistory = [
-      {
-        language: "JavaScript",
-        results: [{ pass: true }],
-      },
-    ];
-
-    render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
-
-    const passedText = screen.getByText("Passed: 1");
-    expect(passedText).toHaveClass("text-green-400");
-  });
-
-  it("applies correct styling to failed count", () => {
-    const mockHistory = [
-      {
-        language: "JavaScript",
-        results: [{ pass: false }],
-      },
-    ];
-
-    render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
-
-    const failedText = screen.getByText("Failed: 1");
-    expect(failedText).toHaveClass("text-red-400");
+    expect(screen.getByText("JavaScript")).toBeInTheDocument();
   });
 
   it("renders checkmark icon in title", () => {
     const mockHistory = [
       {
         language: "JavaScript",
-        results: [{ pass: true }],
+        output: "Test",
       },
     ];
 
@@ -251,15 +180,15 @@ describe("CodeEditorSubmissionResults", () => {
     const mockHistory = [
       {
         language: "Lang1",
-        results: [{ pass: true }],
+        output: "Output 1",
       },
       {
         language: "Lang2",
-        results: [{ pass: true }],
+        output: "Output 2",
       },
       {
         language: "Lang3",
-        results: [{ pass: true }],
+        output: "Output 3",
       },
     ];
 
@@ -269,5 +198,76 @@ describe("CodeEditorSubmissionResults", () => {
     expect(screen.getByText("#3")).toBeInTheDocument();
     expect(screen.getByText("#2")).toBeInTheDocument();
     expect(screen.getByText("#1")).toBeInTheDocument();
+  });
+
+  it("renders submission card with correct styling classes", () => {
+    const mockHistory = [
+      {
+        language: "Python",
+        output: "Output",
+      },
+    ];
+
+    const { container } = render(
+      <CodeEditorSubmissionResults submissionHistory={mockHistory} />
+    );
+
+    const submissionCard = container.querySelector(".bg-slate-800\\/60");
+    expect(submissionCard).toBeInTheDocument();
+  });
+
+  it("renders output container with correct styling", () => {
+    const mockHistory = [
+      {
+        language: "JavaScript",
+        output: "Test",
+      },
+    ];
+
+    const { container } = render(
+      <CodeEditorSubmissionResults submissionHistory={mockHistory} />
+    );
+
+    const outputContainer = container.querySelector(".bg-slate-900\\/60");
+    expect(outputContainer).toBeInTheDocument();
+  });
+
+  it("renders submissions in horizontal flex layout", () => {
+    const mockHistory = [
+      {
+        language: "Lang1",
+        output: "Output 1",
+      },
+      {
+        language: "Lang2",
+        output: "Output 2",
+      },
+    ];
+
+    const { container } = render(
+      <CodeEditorSubmissionResults submissionHistory={mockHistory} />
+    );
+
+    const flexContainer = container.querySelector(".flex.flex-row.gap-4");
+    expect(flexContainer).toBeInTheDocument();
+    expect(flexContainer?.children).toHaveLength(2);
+  });
+
+  it("displays multiple outputs correctly", () => {
+    const mockHistory = [
+      {
+        language: "JavaScript",
+        output: "Success",
+      },
+      {
+        language: "Python",
+        output: "Error occurred",
+      },
+    ];
+
+    render(<CodeEditorSubmissionResults submissionHistory={mockHistory} />);
+
+    expect(screen.getByText("Success")).toBeInTheDocument();
+    expect(screen.getByText("Error occurred")).toBeInTheDocument();
   });
 });

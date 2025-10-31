@@ -1,5 +1,5 @@
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import { Header } from "../Header";
+import Header from "../Header";
 import { signOut } from "@/lib/auth";
 
 // Mock dependencies
@@ -11,6 +11,7 @@ jest.mock("next/link", () => {
 });
 
 jest.mock("lucide-react", () => ({
+  __esModule: true,
   Code2: () => <svg data-testid="code2-icon" />,
   User: () => <svg data-testid="user-icon" />,
   LogOut: () => <svg data-testid="logout-icon" />,
@@ -26,10 +27,12 @@ jest.mock("@/lib/auth", () => ({
 }));
 
 jest.mock("../SoloPracticeButton", () => ({
-  SoloPracticeButton: () => <button>Solo Practice</button>,
+  __esModule: true,
+  default: () => <button>Solo Practice</button>,
 }));
 
 jest.mock("@/components/ui/button", () => ({
+  __esModule: true,
   Button: ({
     children,
     className,
@@ -47,6 +50,7 @@ jest.mock("@/components/ui/button", () => ({
 }));
 
 jest.mock("@/components/ui/avatar", () => ({
+  __esModule: true,
   Avatar: ({
     children,
     className,
@@ -63,6 +67,7 @@ jest.mock("@/components/ui/avatar", () => ({
 }));
 
 jest.mock("@/components/ui/dropdown-menu", () => ({
+  __esModule: true,
   DropdownMenu: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
@@ -132,6 +137,19 @@ describe("Header", () => {
 
       expect(screen.getByText("Solo Practice")).toBeInTheDocument();
     });
+
+    it("renders history button", () => {
+      render(<Header />);
+
+      expect(screen.getByText("History")).toBeInTheDocument();
+    });
+
+    it("history link points to /history", () => {
+      render(<Header />);
+
+      const historyLink = screen.getByText("History").closest("a");
+      expect(historyLink).toHaveAttribute("href", "/history");
+    });
   });
 
   describe("User avatar and dropdown", () => {
@@ -197,7 +215,8 @@ describe("Header", () => {
       render(<Header />);
 
       expect(screen.getByText("Match History")).toBeInTheDocument();
-      expect(screen.getByTestId("history-icon")).toBeInTheDocument();
+      const historyIcons = screen.getAllByTestId("history-icon");
+      expect(historyIcons.length).toBeGreaterThan(0);
     });
 
     it("renders Log out menu item", () => {

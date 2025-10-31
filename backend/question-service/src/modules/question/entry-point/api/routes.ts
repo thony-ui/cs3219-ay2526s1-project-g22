@@ -4,6 +4,7 @@ import {
   getQuestions,
   getRandomQuestion,
   getAllTopics,
+  getQuestionsByIds,
 } from "../../domain/question.controller";
 
 const router = Router();
@@ -35,6 +36,16 @@ router.get("/topics", async (req, res, next) => {
 router.get("/:id", async (req, res, next) => {
   try {
     await getQuestionById(req, res);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/by-ids", async (req, res, next) => {
+  try {
+    const { ids } = req.body;
+    const questions = await getQuestionsByIds(req, res);
+    res.json(questions);
   } catch (err) {
     next(err);
   }

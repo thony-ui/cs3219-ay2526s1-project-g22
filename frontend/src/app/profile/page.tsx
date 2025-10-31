@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Edit2, Trophy, Target, Upload, Loader2 } from "lucide-react";
 import { useUser } from "@/contexts/user-context";
 import { useState, useRef } from "react";
-import { Header } from "../_components/Header";
+import Header from "../_components/Header";
 import Footer from "../_components/Footer";
 import { invalidateUser, useUpdateUser } from "@/mutations/use-update-user";
 import { showToast } from "@/utils/toast-helper";

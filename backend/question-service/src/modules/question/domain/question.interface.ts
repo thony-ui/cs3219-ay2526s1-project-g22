@@ -1,5 +1,6 @@
+import { ObjectId } from "mongodb";
 export interface Question {
-  _id?: string;
+  _id?: string | ObjectId;
   questionId: string;
   title: string;
   difficulty: "Easy" | "Medium" | "Hard";
