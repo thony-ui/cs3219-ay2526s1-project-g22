@@ -32,7 +32,7 @@ export default function HistoryPage() {
   }, []);
 
   return (
-    <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
       <Header/>
       <CardContent className="mt-4">
         {loading ? (

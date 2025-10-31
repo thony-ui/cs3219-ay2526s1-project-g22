@@ -104,11 +104,8 @@ export default function HistoryTable({ data }: HistoryTableProps) {
   const [open, setOpen] = useState(false);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedTitle, setSelectedTitle] = useState<string>("");
-
-  // --- NEW STATES ADDED ---
   const [aiResponse, setAiResponse] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  // --- END NEW STATES ---
 
   const allTags = Array.from(
     new Set(data.flatMap((d) => d.question?.tags || []))
