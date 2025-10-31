@@ -44,6 +44,7 @@
       "essential": true,
       "memoryReservation": 256,
       "portMappings": [{ "containerPort": 6004, "hostPort": 6004 }],
+      "links": ["question-service"],
       "logConfiguration": {
         "logDriver": "awslogs",
         "options": {
