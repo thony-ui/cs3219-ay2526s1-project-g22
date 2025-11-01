@@ -12,7 +12,8 @@
         "collaboration-service",
         "question-service",
         "matching-service",
-        "chat-service"
+        "chat-service",
+        "ai-service"
       ],
       "logConfiguration": {
         "logDriver": "awslogs",
@@ -97,6 +98,21 @@
           "awslogs-group": "/aws/elasticbeanstalk/peer-prep-backend",
           "awslogs-region": "ap-southeast-1",
           "awslogs-stream-prefix": "chat-service"
+        }
+      }
+    },
+    {
+      "name": "ai-service",
+      "image": "820976530674.dkr.ecr.ap-southeast-1.amazonaws.com/ai-service:latest",
+      "essential": true,
+      "memoryReservation": 256,
+      "portMappings": [{ "containerPort": 6020, "hostPort": 6020 }],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/aws/elasticbeanstalk/peer-prep-backend",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "ai-service"
         }
       }
     },
