@@ -46,9 +46,9 @@ interface DisplayMatch {
 // --- API Fetching Function ---
 async function fetchMatchHistory(userId: string): Promise<DisplayMatch[]> {
   const res = await fetch(
-    `http://localhost:8000/api/matching-service/history/${encodeURIComponent(
-      userId
-    )}`,
+    `${
+      process.env.NEXT_PUBLIC_API_URL
+    }/api/matching-service/history/${encodeURIComponent(userId)}`,
     {
       cache: "no-store",
     }
