@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import RecentSessionsTable from "../RecentSessionsTable";
-import { Match } from "../../page";
+import { HistoryData } from "@/app/history/types/HistoryData";
 
 // Mock lucide-react
 jest.mock("lucide-react", () => ({
@@ -70,24 +70,48 @@ jest.mock("@/components/ui/card", () => ({
 }));
 
 describe("RecentSessionsTable", () => {
-  const mockMatches: Match[] = [
+  const mockMatches: HistoryData[] = [
     {
       id: "1",
-      interviewee: "Alice Smith",
-      question: "Two Sum",
-      difficulty: "Easy",
+      created_at: "2024-01-01T10:00:00Z",
+      current_code: "console.log('Hello');",
+      interviewer: { name: "Alice Smith" },
+      interviewee: { name: "Bob Johnson" },
+      question: {
+        _id: "q1-mongo-id",
+        questionId: "q1",
+        title: "Two Sum",
+        difficulty: "Easy",
+        tags: ["Array", "Hash Table"],
+      },
     },
     {
       id: "2",
-      interviewee: "Bob Johnson",
-      question: "Longest Substring Without Repeating Characters",
-      difficulty: "Medium",
+      created_at: "2024-01-02T10:00:00Z",
+      current_code: null,
+      interviewer: { name: "Charlie Brown" },
+      interviewee: { name: "Diana Prince" },
+      question: {
+        _id: "q2-mongo-id",
+        questionId: "q2",
+        title: "Longest Substring Without Repeating Characters",
+        difficulty: "Medium",
+        tags: ["String", "Sliding Window"],
+      },
     },
     {
       id: "3",
-      interviewee: "Charlie Brown",
-      question: "Median of Two Sorted Arrays",
-      difficulty: "Hard",
+      created_at: "2024-01-03T10:00:00Z",
+      current_code: "function median() {}",
+      interviewer: { name: "Eve Adams" },
+      interviewee: { name: "Frank Miller" },
+      question: {
+        _id: "q3-mongo-id",
+        questionId: "q3",
+        title: "Median of Two Sorted Arrays",
+        difficulty: "Hard",
+        tags: ["Array", "Binary Search", "Divide and Conquer"],
+      },
     },
   ];
 
@@ -108,7 +132,8 @@ describe("RecentSessionsTable", () => {
     it("renders table headers", () => {
       render(<RecentSessionsTable matches={mockMatches} />);
 
-      expect(screen.getByText("Partner")).toBeInTheDocument();
+      expect(screen.getByText("Interviewer")).toBeInTheDocument();
+      expect(screen.getByText("Interviewee")).toBeInTheDocument();
       expect(screen.getByText("Question")).toBeInTheDocument();
       expect(screen.getByText("Difficulty")).toBeInTheDocument();
     });
@@ -119,6 +144,9 @@ describe("RecentSessionsTable", () => {
       expect(screen.getByText("Alice Smith")).toBeInTheDocument();
       expect(screen.getByText("Bob Johnson")).toBeInTheDocument();
       expect(screen.getByText("Charlie Brown")).toBeInTheDocument();
+      expect(screen.getByText("Diana Prince")).toBeInTheDocument();
+      expect(screen.getByText("Eve Adams")).toBeInTheDocument();
+      expect(screen.getByText("Frank Miller")).toBeInTheDocument();
     });
 
     it("renders empty table when no matches provided", () => {
@@ -129,37 +157,63 @@ describe("RecentSessionsTable", () => {
     });
   });
 
-  describe("Partner column", () => {
-    it("renders partner names", () => {
+  describe("Interviewer column", () => {
+    it("renders interviewer names", () => {
       render(<RecentSessionsTable matches={mockMatches} />);
 
       expect(screen.getByText("Alice Smith")).toBeInTheDocument();
-      expect(screen.getByText("Bob Johnson")).toBeInTheDocument();
       expect(screen.getByText("Charlie Brown")).toBeInTheDocument();
+      expect(screen.getByText("Eve Adams")).toBeInTheDocument();
     });
 
-    it("renders partner initials in avatar", () => {
+    it("renders interviewer initials in avatar", () => {
       render(<RecentSessionsTable matches={mockMatches} />);
 
-      expect(screen.getByText("AS")).toBeInTheDocument();
-      expect(screen.getByText("BJ")).toBeInTheDocument();
-      expect(screen.getByText("CB")).toBeInTheDocument();
+      expect(screen.getByText("A")).toBeInTheDocument();
+      expect(screen.getByText("C")).toBeInTheDocument();
+      expect(screen.getByText("E")).toBeInTheDocument();
     });
 
-    it("handles single-name partners", () => {
-      const singleNameMatches: Match[] = [
+    it("handles null interviewer", () => {
+      const noInterviewerMatches: HistoryData[] = [
         {
           id: "1",
-          interviewee: "Alice",
-          question: "Test",
-          difficulty: "Easy",
+          created_at: "2024-01-01T10:00:00Z",
+          current_code: null,
+          interviewer: null,
+          interviewee: { name: "Bob Johnson" },
+          question: {
+            _id: "q1-mongo-id",
+            questionId: "q1",
+            title: "Test Question",
+            difficulty: "Easy",
+            tags: ["Test"],
+          },
         },
       ];
 
-      render(<RecentSessionsTable matches={singleNameMatches} />);
+      const { container } = render(
+        <RecentSessionsTable matches={noInterviewerMatches} />
+      );
+      expect(container.querySelector("tbody")).toBeInTheDocument();
+    });
+  });
 
-      expect(screen.getByText("Alice")).toBeInTheDocument();
-      expect(screen.getByText("A")).toBeInTheDocument();
+  describe("Interviewee column", () => {
+    it("renders interviewee names", () => {
+      render(<RecentSessionsTable matches={mockMatches} />);
+
+      expect(screen.getByText("Bob Johnson")).toBeInTheDocument();
+      expect(screen.getByText("Diana Prince")).toBeInTheDocument();
+      expect(screen.getByText("Frank Miller")).toBeInTheDocument();
+    });
+
+    it("renders interviewee initials in avatar", () => {
+      render(<RecentSessionsTable matches={mockMatches} />);
+
+      expect(screen.getByText("B")).toBeInTheDocument();
+      expect(screen.getByText("D")).toBeInTheDocument();
+      expect(screen.getByText("F")).toBeInTheDocument();
     });
   });
 
@@ -177,13 +231,21 @@ describe("RecentSessionsTable", () => {
     });
 
     it("handles long question titles", () => {
-      const longQuestionMatches: Match[] = [
+      const longQuestionMatches: HistoryData[] = [
         {
           id: "1",
-          interviewee: "Test User",
-          question:
-            "This is a very long question title that might wrap to multiple lines",
-          difficulty: "Medium",
+          created_at: "2024-01-01T10:00:00Z",
+          current_code: null,
+          interviewer: { name: "Test User" },
+          interviewee: { name: "Test User 2" },
+          question: {
+            _id: "q1-mongo-id",
+            questionId: "q1",
+            title:
+              "This is a very long question title that might wrap to multiple lines",
+            difficulty: "Medium",
+            tags: ["Test"],
+          },
         },
       ];
 
@@ -284,18 +346,34 @@ describe("RecentSessionsTable", () => {
     });
 
     it("handles multiple matches with same difficulty", () => {
-      const sameMatches: Match[] = [
+      const sameMatches: HistoryData[] = [
         {
           id: "1",
-          interviewee: "User 1",
-          question: "Question 1",
-          difficulty: "Easy",
+          created_at: "2024-01-01T10:00:00Z",
+          current_code: null,
+          interviewer: { name: "User 1" },
+          interviewee: { name: "User 2" },
+          question: {
+            _id: "q1-mongo-id",
+            questionId: "q1",
+            title: "Question 1",
+            difficulty: "Easy",
+            tags: ["Test"],
+          },
         },
         {
           id: "2",
-          interviewee: "User 2",
-          question: "Question 2",
-          difficulty: "Easy",
+          created_at: "2024-01-02T10:00:00Z",
+          current_code: null,
+          interviewer: { name: "User 3" },
+          interviewee: { name: "User 4" },
+          question: {
+            _id: "q2-mongo-id",
+            questionId: "q2",
+            title: "Question 2",
+            difficulty: "Easy",
+            tags: ["Test"],
+          },
         },
       ];
 
@@ -306,6 +384,30 @@ describe("RecentSessionsTable", () => {
       badges.forEach((badge) => {
         expect(badge).toHaveTextContent("Easy");
       });
+    });
+
+    it("handles null current_code", () => {
+      const nullCodeMatches: HistoryData[] = [
+        {
+          id: "1",
+          created_at: "2024-01-01T10:00:00Z",
+          current_code: null,
+          interviewer: { name: "User 1" },
+          interviewee: { name: "User 2" },
+          question: {
+            _id: "q1-mongo-id",
+            questionId: "q1",
+            title: "Question 1",
+            difficulty: "Easy",
+            tags: ["Test"],
+          },
+        },
+      ];
+
+      const { container } = render(
+        <RecentSessionsTable matches={nullCodeMatches} />
+      );
+      expect(container.querySelector("tbody")).toBeInTheDocument();
     });
   });
 
@@ -326,7 +428,7 @@ describe("RecentSessionsTable", () => {
       );
 
       const headers = container.querySelectorAll("thead th");
-      expect(headers).toHaveLength(3);
+      expect(headers).toHaveLength(4); // Interviewer, Interviewee, Question, Difficulty
 
       const cells = container.querySelectorAll("tbody td");
       expect(cells.length).toBeGreaterThan(0);

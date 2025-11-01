@@ -2,9 +2,9 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Clock } from "lucide-react";
 import React from "react";
-import { Match } from "../page";
+import { HistoryData } from "../history/types/HistoryData";
 
-function RecentSessionsTable({ matches }: { matches: Match[] }) {
+function RecentSessionsTable({ matches }: { matches: HistoryData[] }) {
   return (
     <Card className="bg-slate-800/60 backdrop-blur-sm border-slate-600/50 shadow-xl">
       <CardHeader className="border-b border-slate-600/30">
@@ -19,7 +19,10 @@ function RecentSessionsTable({ matches }: { matches: Match[] }) {
             <thead>
               <tr className="border-b border-slate-600/30">
                 <th className="text-left py-4 px-6 text-slate-300 font-medium">
-                  Partner
+                  Interviewer
+                </th>
+                <th className="text-left py-4 px-6 text-slate-300 font-medium">
+                  Interviewee
                 </th>
                 <th className="text-left py-4 px-6 text-slate-300 font-medium">
                   Question
@@ -38,40 +41,49 @@ function RecentSessionsTable({ matches }: { matches: Match[] }) {
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                        {match.interviewee
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
+                        {match.interviewer?.name[0].toUpperCase()}
                       </div>
                       <span className="text-white font-medium">
-                        {match.interviewee}
+                        {match.interviewer?.name}
                       </span>
                     </div>
                   </td>
                   <td className="py-4 px-6">
-                    <span className="text-slate-200">{match.question}</span>
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
+                        {match.interviewee.name[0].toUpperCase()}
+                      </div>
+                      <span className="text-white font-medium">
+                        {match.interviewee.name}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-4 px-6">
+                    <span className="text-slate-200">
+                      {match.question.title}
+                    </span>
                   </td>
                   <td className="py-4 px-6">
                     <Badge
                       className={`
                             ${
-                              match.difficulty === "Easy"
+                              match.question.difficulty === "Easy"
                                 ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                                 : ""
                             }
                             ${
-                              match.difficulty === "Medium"
+                              match.question.difficulty === "Medium"
                                 ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
                                 : ""
                             }
                             ${
-                              match.difficulty === "Hard"
+                              match.question.difficulty === "Hard"
                                 ? "bg-red-500/20 text-red-400 border-red-500/30"
                                 : ""
                             }
                           `}
                     >
-                      {match.difficulty}
+                      {match.question.difficulty}
                     </Badge>
                   </td>
                 </tr>
