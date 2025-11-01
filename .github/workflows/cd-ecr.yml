@@ -10,6 +10,7 @@ on:
       - "backend/matching-service/**"
       - "backend/collaboration-service/**"
       - "backend/chat-service/**"
+      - "backend/ai-service/**"
       - ".github/workflows/cd-ecr.yml"
 
 jobs:

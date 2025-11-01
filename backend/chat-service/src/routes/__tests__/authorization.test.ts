@@ -2,6 +2,7 @@
 
 // Set SECRET_KEY env before importing middleware
 process.env.SECRET_KEY = "test-secret";
+process.env.SUPABASE_URL = "https://test.supabase.co";
 
 import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
