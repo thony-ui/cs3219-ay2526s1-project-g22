@@ -32,6 +32,7 @@ import { useRouter } from "next/navigation";
 import QuestionStats from "./_components/QuestionStats";
 import ProgressBar from "./_components/ProgressBar";
 import { uploadToStorage } from "./actions/upload-to-storage";
+import { useGetHistoryData } from "@/queries/use-get-history-data";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -45,12 +46,20 @@ export default function ProfilePage() {
   });
   const { mutateAsync: updateUser } = useUpdateUser();
 
+  const { data, isLoading: sessionsLoading } = useGetHistoryData();
+
   // Mock data for questions solved - replace with actual data from your backend
   const questionsStats = {
-    total: 127,
-    easy: 45,
-    medium: 62,
-    hard: 20,
+    total: data ? data.length : 0,
+    easy: data
+      ? data.filter((q) => q.question.difficulty === "Easy").length
+      : 0,
+    medium: data
+      ? data.filter((q) => q.question.difficulty === "Medium").length
+      : 0,
+    hard: data
+      ? data.filter((q) => q.question.difficulty === "Hard").length
+      : 0,
   };
 
   const handleAvatarClick = () => {
@@ -137,6 +146,14 @@ export default function ProfilePage() {
       [e.target.name]: e.target.value,
     }));
   };
+
+  if (sessionsLoading) {
+    return (
+      <div className="flex flex-col w-full min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+        <div className="text-white text-lg">Loading data...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex flex-col">
