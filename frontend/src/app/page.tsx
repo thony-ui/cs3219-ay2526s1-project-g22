@@ -6,42 +6,25 @@ import { Button } from "@/components/ui/button";
 import { Users, ChevronRight } from "lucide-react";
 import RecentSessionsTable from "./_components/RecentSessionsTable";
 import { useRouter } from "next/navigation";
-
-export type Match = {
-  id: string;
-  interviewee: string;
-  question: string;
-  difficulty: string;
-};
-const mockMatches: Match[] = [
-  {
-    id: "1",
-    interviewee: "John Doe",
-    question: "Two Sum Problem",
-    difficulty: "Easy",
-  },
-  {
-    id: "2",
-    interviewee: "Sarah Smith",
-    question: "Binary Tree Traversal",
-    difficulty: "Medium",
-  },
-  {
-    id: "3",
-    interviewee: "Mike Johnson",
-    question: "Dynamic Programming - Fibonacci",
-    difficulty: "Hard",
-  },
-];
+import { useGetHistoryData } from "@/queries/use-get-history-data";
 
 export default function Home() {
   const { user, isLoading } = useUser();
   const router = useRouter();
+  const { data, isLoading: sessionsLoading } = useGetHistoryData();
 
   if (isLoading) {
     return (
       <div className="flex flex-col w-full min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
         <div className="text-white text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (sessionsLoading) {
+    return (
+      <div className="flex flex-col w-full min-h-screen items-center justify-center bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+        <div className="text-white text-lg">Loading sessions...</div>
       </div>
     );
   }
@@ -77,7 +60,7 @@ export default function Home() {
         </div>
 
         {/* Previous Matches Table */}
-        <RecentSessionsTable matches={mockMatches} />
+        <RecentSessionsTable matches={data?.splice(0, 3) ?? []} />
       </main>
 
       <Footer />
