@@ -41,49 +41,41 @@ function RecentSessionsTable({ matches }: { matches: HistoryData[] }) {
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                        {match.interviewer?.name[0].toUpperCase()}
+                        {(match.interviewer?.name?.[0] ?? "").toUpperCase()}
                       </div>
                       <span className="text-white font-medium">
-                        {match.interviewer?.name}
+                        {match.interviewer?.name ?? "N/A"}
                       </span>
                     </div>
                   </td>
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold">
-                        {match.interviewee.name[0].toUpperCase()}
+                        {(match.interviewee?.name?.[0] ?? "").toUpperCase()}
                       </div>
                       <span className="text-white font-medium">
-                        {match.interviewee.name}
+                        {match.interviewee?.name ?? "N/A"}
                       </span>
                     </div>
                   </td>
                   <td className="py-4 px-6">
                     <span className="text-slate-200">
-                      {match.question.title}
+                      {match.question?.title ?? "N/A"}
                     </span>
                   </td>
                   <td className="py-4 px-6">
                     <Badge
-                      className={`
-                            ${
-                              match.question.difficulty === "Easy"
-                                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-                                : ""
-                            }
-                            ${
-                              match.question.difficulty === "Medium"
-                                ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
-                                : ""
-                            }
-                            ${
-                              match.question.difficulty === "Hard"
-                                ? "bg-red-500/20 text-red-400 border-red-500/30"
-                                : ""
-                            }
-                          `}
+                      className={
+                        match.question?.difficulty === "Easy"
+                          ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                          : match.question?.difficulty === "Medium"
+                          ? "bg-amber-500/20 text-amber-400 border-amber-500/30"
+                          : match.question?.difficulty === "Hard"
+                          ? "bg-red-500/20 text-red-400 border-red-500/30"
+                          : ""
+                      }
                     >
-                      {match.question.difficulty}
+                      {match.question?.difficulty ?? "N/A"}
                     </Badge>
                   </td>
                 </tr>
