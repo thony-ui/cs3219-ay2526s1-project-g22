@@ -10,6 +10,7 @@ const port = process.env.AI_SERVICE_PORT || 6020;
 const allowedOrigins = [
   process.env.ALLOWED_ORIGIN_DEVELOPMENT,
   process.env.ALLOWED_ORIGIN_PRODUCTION,
+  process.env.ALLOWED_API_GATEWAY_ORIGIN,
 ].filter(Boolean) as string[];
 
 app.use(
