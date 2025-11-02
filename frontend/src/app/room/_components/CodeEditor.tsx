@@ -400,6 +400,24 @@ export default function CodeEditor({
     ];
   }, [selectedLanguage]);
 
+  // Persist language selection to backend so the session row's
+  // `current_language` column stays authoritative. This is a lightweight
+  // helper used by the language selection UI.
+  const requestLanguageChange = useCallback(
+    (language: string) => {
+      try {
+        setSelectedLanguage(language);
+        // best-effort persist; don't block UI
+        persistSnapshot(baseApiUrl, sessionId, undefined, language).catch(
+          () => void 0
+        );
+      } catch (err) {
+        // ignore
+      }
+    },
+    [sessionId]
+  );
+
   // TEST ONLY: automatic cyclic typing in one tab
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -465,6 +483,7 @@ export default function CodeEditor({
           executeCode={executeCode}
           isBlocked={false}
           languageMap={languageMap}
+          onRequestLanguageChange={requestLanguageChange}
         />
 
         {/* Main editor */}
@@ -472,9 +491,12 @@ export default function CodeEditor({
           <div className="flex-1 flex flex-col min-w-0">
             <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
               <CodeMirror
-                // Let yCollab / Y.Text control the document. Provide an initial
-                // value only via `defaultValue` so we don't overwrite the CRDT.
-                defaultValue={initialCode}
+                // Let yCollab / Y.Text control the document. We must NOT set
+                // `defaultValue` here when using CRDT-backed yCollab because
+                // that can lead to the same snippet being rendered both as the
+                // editor's initial value and later inserted into the Y.Text,
+                // producing duplicates. The CRDT insertion (in
+                // `joinRealtimeChannel`) is authoritative.
                 // key the editor by session so switching sessions forces a fresh mount
                 key={sessionId}
                 height="100%"
@@ -504,11 +526,18 @@ export default function CodeEditor({
 async function persistSnapshot(
   baseUrl: string,
   sessionId: string,
-  code: string
+  code?: string,
+  language?: string,
+  lastRequestId?: string
 ) {
+  const body: Record<string, unknown> = {};
+  if (typeof code === "string") body.code = code;
+  if (typeof language === "string") body.language = language;
+  if (typeof lastRequestId === "string") body.last_request_id = lastRequestId;
+  if (Object.keys(body).length === 0) return;
   await axiosInstance.patch(
     `${baseUrl}/sessions/${sessionId}/snapshot`,
-    { code },
+    body,
     { headers: { "Content-Type": "application/json" } }
   );
 }

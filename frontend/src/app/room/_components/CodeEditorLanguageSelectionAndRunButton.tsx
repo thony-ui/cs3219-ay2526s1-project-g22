@@ -15,6 +15,7 @@ function CodeEditorLanguageSelectionAndRunButton({
   executeCode,
   isBlocked,
   languageMap,
+  onRequestLanguageChange,
 }: {
   selectedLanguage: string;
   setSelectedLanguage: (lang: string) => void;
@@ -23,9 +24,14 @@ function CodeEditorLanguageSelectionAndRunButton({
   executeCode: () => void;
   isBlocked: boolean;
   languageMap: typeof import("@/utils/language-config").languageMap;
+  onRequestLanguageChange?: (lang: string) => void;
 }) {
   const handleChange = (lang: string) => {
-    setSelectedLanguage(lang);
+    if (typeof onRequestLanguageChange === "function") {
+      onRequestLanguageChange(lang);
+    } else {
+      setSelectedLanguage(lang);
+    }
   };
   return (
     <div className="flex gap-4 items-center p-4 bg-slate-800/50">

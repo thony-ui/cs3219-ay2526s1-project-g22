@@ -16,7 +16,9 @@ type CreateSessionBody = {
 };
 
 type UpdateSnapshotBody = {
-  code: string;
+  code?: string;
+  language?: string;
+  last_request_id?: string;
 };
 
 type SessionParams = {
@@ -124,13 +126,26 @@ router.patch(
   ) => {
     try {
       const { id } = req.params;
-      const { code } = req.body;
+      const { code, language, last_request_id } = req.body;
 
-      if (typeof code !== "string") {
-        return res.status(400).json({ error: "Missing or invalid code" });
+      // Require at least one field to update
+      if (
+        typeof code !== "string" &&
+        typeof language !== "string" &&
+        typeof last_request_id !== "string"
+      ) {
+        return res.status(400).json({ error: "Missing or invalid snapshot body" });
       }
 
-      const session = await updateSessionSnapshot(id, code);
+      // Preserve existing behavior for the common code-only path (keep call
+      // signature the same when only `code` is supplied so existing tests
+      // and callers continue to work).
+      let session;
+      if (typeof code === "string" && typeof language === "undefined" && typeof last_request_id === "undefined") {
+        session = await updateSessionSnapshot(id, code);
+      } else {
+        session = await updateSessionSnapshot(id, code, language, last_request_id);
+      }
       res.json(session);
     } catch (err: any) {
       res.status(500).json({ error: err.message });

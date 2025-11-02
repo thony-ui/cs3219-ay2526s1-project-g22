@@ -161,9 +161,18 @@ export async function getAllSessionSummaryOfUser(
 // update the current code in the session
 export async function updateSessionSnapshot(
   id: string,
-  code: string
+  code?: string,
+  language?: string,
+  lastRequestId?: string
 ): Promise<Tables<"sessions">> {
-  const update: TablesUpdate<"sessions"> = { current_code: code };
+  const update: TablesUpdate<"sessions"> = {};
+  if (typeof code === "string") update.current_code = code;
+  if (typeof language === "string") update.current_language = language;
+  if (typeof lastRequestId === "string") (update as any).last_request_id = lastRequestId;
+
+  if (Object.keys(update).length === 0) {
+    throw new Error("No fields to update");
+  }
 
   const { data, error } = await supabase
     .from("sessions")
