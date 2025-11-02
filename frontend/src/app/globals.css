@@ -128,7 +128,8 @@
   .pretty-scrollbar {
     /* For Firefox */
     scrollbar-width: thin;
-    scrollbar-color: theme('colors.blue.600') theme('colors.slate.800');
+    scrollbar-color: theme('colors.blue.600') transparent;
+    scrollbar-gutter: stable;
   }
 
   /* For Chrome, Safari, Edge */
@@ -136,7 +137,7 @@
     @apply w-2; /* 8px */
   }
   .pretty-scrollbar::-webkit-scrollbar-track {
-    @apply bg-slate-800;
+    @apply bg-transparent;
   }
   .pretty-scrollbar::-webkit-scrollbar-thumb {
     @apply bg-blue-600 rounded-md;

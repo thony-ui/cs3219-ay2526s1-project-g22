@@ -258,7 +258,7 @@ class SupabaseService {
 
         if (error) {
             logger.error(`Error fetching collaboration history for session ${session_id}:`, error.message);
-            throw error;
+            return null;
         }
 
         return data;

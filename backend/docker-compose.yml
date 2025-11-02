@@ -101,6 +101,19 @@ services:
       - .env
     networks:
       - shared-network
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: ./Dockerfile
+      target: development
+    ports:
+      - "6020:6020"
+    volumes:
+      - ./ai-service/src:/app/src
+    env_file:
+      - .env
+    networks:
+      - shared-network
 
 networks:
   shared-network:

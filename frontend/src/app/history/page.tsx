@@ -32,9 +32,9 @@ export default function HistoryPage() {
   }, []);
 
   return (
-    <div>
-      <Header />
-      <CardContent>
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
+      <Header/>
+      <CardContent className="mt-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin mb-2" />
