@@ -67,6 +67,26 @@ export default function CodeEditor({
     null
   );
 
+  const getSnippetForLanguage = (displayLanguage: string): string | null => {
+    try {
+      const cfg = languageMap[displayLanguage as keyof typeof languageMap];
+      const apiLang = cfg?.apiLang || displayLanguage;
+      const snippets = question?.codeSnippets;
+      if (!snippets || snippets.length === 0) return null;
+      const found = snippets.find((s: any) =>
+        [s.lang, s.language, s.type].some(
+          (v) => !!v && String(v).toLowerCase() === String(apiLang).toLowerCase()
+        )
+      );
+      if (!found) return null;
+      return (
+        (found.code as string) || (found.content as string) || (found.snippet as string) || ""
+      );
+    } catch (err) {
+      return null;
+    }
+  };
+
   // yjs setup
   const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ytextRef = useRef<Y.Text>(ydocRef.current.getText("codemirror"));
@@ -406,8 +426,24 @@ export default function CodeEditor({
   const requestLanguageChange = useCallback(
     (language: string) => {
       try {
+        // Update UI state immediately
         setSelectedLanguage(language);
-        // best-effort persist; don't block UI
+
+        // If we have a snippet for this language, replace the Yjs document
+        // locally so the change is propagated to peers via Yjs updates.
+        const snippet = getSnippetForLanguage(language);
+        if (snippet !== null) {
+          try {
+            ydocRef.current.transact(() => {
+              ytextRef.current.delete(0, ytextRef.current.length);
+              ytextRef.current.insert(0, snippet);
+            });
+          } catch (err) {
+            // ignore local apply errors
+          }
+        }
+
+        // Persist authoritative language to session row (best-effort)
         persistSnapshot(baseApiUrl, sessionId, undefined, language).catch(
           () => void 0
         );
