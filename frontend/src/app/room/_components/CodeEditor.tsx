@@ -977,44 +977,51 @@ export default function CodeEditor({
           onRequestLanguageChange={requestLanguageChange}
         />
 
-        {/* If no language is selected, prompt users to choose one and keep editor read-only */}
-        {!selectedLanguage && (
-          <div className="mx-4 my-2 p-3 rounded-md bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800">
-            <strong className="mr-2">Select a language to start editing</strong>
-            <span className="text-sm">Use the Language dropdown above to enable editing the code.</span>
-          </div>
-        )}
-
-        {/* Main editor */}
-        <div className="flex flex-1 min-h-0 gap-4 p-4">
-          <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
-              <CodeMirror
-                // Let yCollab / Y.Text control the document. We must NOT set
-                // `defaultValue` here when using CRDT-backed yCollab because
-                // that can lead to the same snippet being rendered both as the
-                // editor's initial value and later inserted into the Y.Text,
-                // producing duplicates. The CRDT insertion (in
-                // `joinRealtimeChannel`) is authoritative.
-                // key the editor by session so switching sessions forces a fresh mount
-                key={sessionId}
-                height="100%"
-                theme={oneDark}
-                extensions={extensions}
-                basicSetup={{
-                  lineNumbers: true,
-                  foldGutter: true,
-                  dropCursor: false,
-                  allowMultipleSelections: true,
-                  indentOnInput: true,
-                  bracketMatching: true,
-                  closeBrackets: true,
-                  autocompletion: true,
-                }}
-              />
+        {/* If no language is selected, don't even show the editor; show a chooser panel in-place */}
+        {!selectedLanguage ? (
+          <div className="flex-1 flex items-center justify-center p-8 min-h-[200px]">
+            <div className="w-full max-w-2xl text-center rounded-lg p-8">
+              <h3 className="text-xl text-slate-300 font-semibold mb-2">Choose a language to enable the editor</h3>
+              <p className="text-sm text-slate-400 mb-4">The collaborative editor is disabled until a language is selected. Choose a language with the language dropdown above to get started.</p>
             </div>
           </div>
-        </div>
+        ) : (
+          /* Main editor */
+          <div className="flex flex-1 min-h-0 gap-4 p-4">
+            <div className="flex-1 flex flex-col min-w-0">
+              <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
+                <CodeMirror
+                  // Let yCollab / Y.Text control the document. We must NOT set
+                  // `defaultValue` here when using CRDT-backed yCollab because
+                  // that can lead to the same snippet being rendered both as the
+                  // editor's initial value and later inserted into the Y.Text,
+                  // producing duplicates. The CRDT insertion (in
+                  // `joinRealtimeChannel`) is authoritative.
+                  // key the editor by session and language so switching sessions
+                  // or changing language forces a fresh mount. Also pass the
+                  // current Y.Text value as `value` at mount time so CodeMirror's
+                  // initial document matches the shared document and remote
+                  // delta ranges won't be out-of-range.
+                  key={`${sessionId}-${selectedLanguage || "none"}`}
+                  value={ytextRef.current?.toString()}
+                  height="100%"
+                  theme={oneDark}
+                  extensions={extensions}
+                  basicSetup={{
+                    lineNumbers: true,
+                    foldGutter: true,
+                    dropCursor: false,
+                    allowMultipleSelections: true,
+                    indentOnInput: true,
+                    bracketMatching: true,
+                    closeBrackets: true,
+                    autocompletion: true,
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        )}
 
         <CodeEditorSubmissionResults submissionHistory={submissionHistory} />
       </div>
