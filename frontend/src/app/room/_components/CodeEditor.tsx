@@ -988,9 +988,10 @@ export default function CodeEditor({
         ) : (
           /* Main editor */
           <div className="flex flex-1 min-h-0 gap-4 p-4">
-            <div className="flex-1 flex flex-col min-w-0">
-              <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
+            <div className="flex-1 flex flex-col min-w-0 h-full">
+              <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner min-h-0 h-full">
                 <CodeMirror
+                  className="h-full"
                   // Let yCollab / Y.Text control the document. We must NOT set
                   // `defaultValue` here when using CRDT-backed yCollab because
                   // that can lead to the same snippet being rendered both as the
