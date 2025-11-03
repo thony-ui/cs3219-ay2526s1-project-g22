@@ -272,7 +272,7 @@ export default function CodeEditor({
     }
   };
 
-  // endSession optionally sends a broadcast to notify other participants.
+  // endSession optionally sends a broadcast to notify other participant.
   // When called as a reaction to a received broadcast, call with sendBroadcast=false
   // to avoid re-broadcast loops.
   const endSession = useCallback(
@@ -625,7 +625,7 @@ export default function CodeEditor({
               : "";
 
           // If the session has an authoritative language selection, use it
-          // to initialise the editor language for all participants.
+          // to initialise the editor language for all participant.
           const sessionLang =
             typeof session.current_language === "string" && session.current_language
               ? session.current_language
@@ -870,7 +870,7 @@ export default function CodeEditor({
       {proposalPending && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9997]">
           <div className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200 px-4 py-2 rounded shadow">
-            Waiting for other participants to accept language change to <strong>{proposalPending.language}</strong>...
+            Waiting for other participant to accept language change to <strong>{proposalPending.language}</strong>...
               <button
                 onClick={() => {
                   // send cancel notification to peers so they can clear their prompt
