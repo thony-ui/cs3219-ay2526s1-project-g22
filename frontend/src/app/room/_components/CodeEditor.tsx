@@ -561,35 +561,13 @@ export default function CodeEditor({
         }
       );
 
-      // schedule a fallback initial insert only if no remote state arrives
-      // within a short window. This prevents a refresh on one user from
-      // overwriting the live document owned by other peers.
-      if (initialCode && ytextRef.current.length === 0) {
-        // randomized small delay + wait-for-remote-state timeout
-        const randomDelay = 50 + Math.floor(Math.random() * 150);
-        const fallbackDelay = 700 + randomDelay; // ms
-        // clear any previous fallback
-        if (initialInsertTimeoutRef.current) {
-          clearTimeout(initialInsertTimeoutRef.current);
-          initialInsertTimeoutRef.current = null;
-        }
-        initialInsertTimeoutRef.current = window.setTimeout(async () => {
-          // only insert if we haven't received remote state and text is still empty
-          try {
-            if (!stateReceivedRef.current && ytextRef.current.length === 0) {
-              ytextRef.current.insert(0, initialCode);
-              // best-effort persist so future joins pick it up from the session
-              await persistSnapshot(baseApiUrl, sessionId, initialCode).catch(
-                () => void 0
-              );
-            }
-          } catch (err) {
-            // ignore
-          } finally {
-            initialInsertTimeoutRef.current = null;
-          }
-        }, fallbackDelay) as unknown as number;
-      }
+      // No local fallback insert: we intentionally avoid seeding the shared
+      // document from the client when no remote state is present. The session
+      // authoritative row (`session.current_code`) or an originator-initiated
+      // language-accept flow should be used to set initial content. Removing
+      // the fallback avoids races where slow page loads cause duplicated
+      // snippets to appear when multiple clients (or the originator) also
+      // attempt inserts.
 
       channelRef.current = channel;
 
@@ -1004,7 +982,20 @@ export default function CodeEditor({
                   // initial document matches the shared document and remote
                   // delta ranges won't be out-of-range.
                   key={`${sessionId}-${selectedLanguage || "none"}`}
-                  value={ytextRef.current?.toString()}
+                    // Only provide an initial `value` to CodeMirror when the
+                    // shared Y.Text already contains content. If we pass a
+                    // non-empty `value` while the Y.Text is empty, CodeMirror
+                    // will render that content locally and then the fallback
+                    // insert (or a later Yjs update) can insert the same
+                    // snippet into the CRDT, producing duplicated text. By
+                    // setting `value` to `undefined` when Y.Text is empty we
+                    // let the CRDT (yCollab) be the single source of truth for
+                    // initial content and avoid duplicate inserts.
+                    value={
+                      ytextRef.current && ytextRef.current.length > 0
+                        ? ytextRef.current.toString()
+                        : undefined
+                    }
                   height="100%"
                   theme={oneDark}
                   extensions={extensions}
