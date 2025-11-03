@@ -93,7 +93,7 @@ export default function ChatPanel({
 
   if (isCollapsed) {
     return (
-      <div className="w-12 h-full flex items-center justify-center">
+      <div className="w-12 h-full flex items-center justify-center md:backdrop-blur-sm md:bg-slate-900/20">
         <button
           aria-label="Open chat"
           className="w-10 h-10 rounded-full bg-slate-700/60 text-white flex items-center justify-center"
@@ -116,7 +116,7 @@ export default function ChatPanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-800/70 border-l border-slate-600/40 rounded-r-md">
+    <div className="flex flex-col h-full bg-slate-800/60 backdrop-blur-sm border-l border-slate-600/40 rounded-r-md">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-600/30">
         <div className="text-sm font-semibold text-white">Chat</div>
         <div className="flex items-center gap-2">

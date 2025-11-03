@@ -157,7 +157,7 @@ export default function RoomPage({
               isBlocked={false}
             />
           </div>
-          <div className="flex h-full min-h-0">
+          <div className="relative flex h-full min-h-0">
             <div className="flex-1 min-w-0">
               <CodeEditor
                 sessionId={roomId}
@@ -165,7 +165,7 @@ export default function RoomPage({
                 showHeader={false}
               />
             </div>
-            {/* Chat panel width shrinks when collapsed so editor can expand */}
+            {/* Chat overlays the editor instead of shifting layout */}
             <ChatWrapper sessionId={roomId} />
           </div>
         </div>
@@ -177,11 +177,18 @@ export default function RoomPage({
 function ChatWrapper({ sessionId }: { sessionId: string }) {
   // Start with chat collapsed/closed by default
   const [collapsed, setCollapsed] = useState(true);
-  // keep the chat hidden on small screens as before
-  const baseClass = "hidden md:block ml-4";
-  const widthClass = collapsed ? "w-12" : "w-80";
+  // keep the chat hidden on small screens as before; overlay on larger
+  // screens so opening the chat does not shift the editor layout.
+  const baseClass = "hidden md:block";
+  // Use responsive width classes so the overlay occupies the correct
+  // horizontal space when expanded. Position absolutely on md+ screens
+  // to overlay the editor (parent container is `relative`).
+  const overlayClasses =
+    "md:absolute md:right-0 md:top-0 md:bottom-0 md:z-50 h-full";
+  const widthClass = collapsed ? "md:w-12" : "md:w-80";
+
   return (
-    <div className={`${widthClass} ${baseClass} h-full`}>
+    <div className={`${baseClass} ${overlayClasses} ${widthClass}`}>
       <ChatPanel
         sessionId={sessionId}
         collapsed={collapsed}
