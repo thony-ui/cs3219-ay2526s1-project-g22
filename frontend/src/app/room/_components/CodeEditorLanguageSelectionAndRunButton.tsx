@@ -15,25 +15,31 @@ function CodeEditorLanguageSelectionAndRunButton({
   executeCode,
   isBlocked,
   languageMap,
+  onRequestLanguageChange,
 }: {
-  selectedLanguage: string;
+  selectedLanguage?: string;
   setSelectedLanguage: (lang: string) => void;
   setCode: (code: string) => void;
   availableLanguages: string[];
   executeCode: () => void;
   isBlocked: boolean;
   languageMap: typeof import("@/utils/language-config").languageMap;
+  onRequestLanguageChange?: (lang: string) => void;
 }) {
   const handleChange = (lang: string) => {
-    setSelectedLanguage(lang);
+    if (typeof onRequestLanguageChange === "function") {
+      onRequestLanguageChange(lang);
+    } else {
+      setSelectedLanguage(lang);
+    }
   };
   return (
     <div className="flex gap-4 items-center p-4 bg-slate-800/50">
       <div className="flex items-center gap-3">
         <label className="text-sm font-medium text-slate-300">Language:</label>
-        <Select value={selectedLanguage} onValueChange={handleChange}>
+        <Select value={selectedLanguage ?? ""} onValueChange={handleChange}>
           <SelectTrigger className="bg-slate-700/80 border-slate-600 text-white w-40 h-9 hover:bg-slate-600/80 transition-colors">
-            <SelectValue />
+            <SelectValue placeholder="Select a language" />
           </SelectTrigger>
           <SelectContent className="bg-slate-700 border-slate-600">
             {availableLanguages.map((lang) => (
@@ -63,11 +69,11 @@ function CodeEditorLanguageSelectionAndRunButton({
         Run Code
       </button>
 
-      {!languageMap[selectedLanguage as keyof typeof languageMap] && (
-        <span className="text-xs text-amber-400">
-          Execution not supported for {selectedLanguage}
-        </span>
-      )}
+      {!selectedLanguage ? (
+        <span className="text-xs text-amber-400">Please select a language to enable editing/execution</span>
+      ) : !languageMap[selectedLanguage as keyof typeof languageMap] ? (
+        <span className="text-xs text-amber-400">Execution not supported for {selectedLanguage}</span>
+      ) : null}
     </div>
   );
 }

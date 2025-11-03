@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import CodeEditor from "../_components/CodeEditor";
 import ChatPanel from "../_components/ChatPanel";
 import CodeEditorHeader from "../_components/CodeEditorHeader";
@@ -61,17 +62,6 @@ export default function RoomPage({
       </div>
     );
   }
-
-  if (error) {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <div className="text-lg text-red-600">
-          Error loading question: {error}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800">
       {/* Question Sidebar */}
@@ -157,7 +147,7 @@ export default function RoomPage({
               isBlocked={false}
             />
           </div>
-          <div className="flex h-full min-h-0">
+          <div className="relative flex h-full min-h-0">
             <div className="flex-1 min-w-0">
               <CodeEditor
                 sessionId={roomId}
@@ -165,7 +155,7 @@ export default function RoomPage({
                 showHeader={false}
               />
             </div>
-            {/* Chat panel width shrinks when collapsed so editor can expand */}
+            {/* Chat overlays the editor instead of shifting layout */}
             <ChatWrapper sessionId={roomId} />
           </div>
         </div>
@@ -174,18 +164,63 @@ export default function RoomPage({
   );
 }
 
+function FloatingChatButton({ onClick }: { onClick: () => void }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  const node = (
+    <div className="fixed bottom-10 right-15 z-[9999] pointer-events-auto">
+      <button
+        aria-label="Open chat"
+        onClick={onClick}
+        className="w-12 h-12 rounded-full bg-slate-700/80 text-white flex items-center justify-center shadow-lg"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="currentColor"
+          aria-hidden
+        >
+          <path d="M20 2H4a2 2 0 0 0-2 2v14l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6 9h12v2H6V9zm8 4H6v-2h8v2zm2-6H6V5h10v2z" />
+        </svg>
+      </button>
+    </div>
+  );
+
+  if (!mounted) return null;
+  return createPortal(node, document.body);
+}
+
 function ChatWrapper({ sessionId }: { sessionId: string }) {
-  const [collapsed, setCollapsed] = useState(false);
-  // keep the chat hidden on small screens as before
-  const baseClass = "hidden md:block ml-4";
-  const widthClass = collapsed ? "w-12" : "w-80";
+  // Start with chat collapsed/closed by default
+  const [collapsed, setCollapsed] = useState(true);
+  // When collapsed, show only a floating chat button in the bottom-right
+  // corner. When expanded, render the chat overlay as before.
+  if (collapsed) {
+    return <FloatingChatButton onClick={() => setCollapsed(false)} />;
+  }
+
+  // expanded overlay
+  const baseClass = "hidden md:block";
+  const overlayClasses = "md:absolute md:right-0 md:top-0 md:bottom-0 md:z-50 h-full";
+  const widthClass = "md:w-80";
+
   return (
-    <div className={`${widthClass} ${baseClass} h-full`}>
-      <ChatPanel
-        sessionId={sessionId}
-        collapsed={collapsed}
-        setCollapsed={setCollapsed}
-      />
+    // Make overlay container non-intercepting so wheel events fall through
+    // to the editor when the pointer is not over the chat panel itself.
+    <div className={`${baseClass} ${overlayClasses} ${widthClass} pointer-events-none`}>
+      <div className="pointer-events-auto h-full">
+        <ChatPanel
+          sessionId={sessionId}
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+        />
+      </div>
     </div>
   );
 }

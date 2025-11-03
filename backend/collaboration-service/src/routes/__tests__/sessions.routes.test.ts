@@ -318,7 +318,7 @@ describe("Sessions Routes - Unit Tests", () => {
         .send({});
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Missing or invalid code");
+      expect(response.body.error).toBe("Missing or invalid snapshot body");
       expect(sessionsService.updateSessionSnapshot).not.toHaveBeenCalled();
     });
 
@@ -328,7 +328,7 @@ describe("Sessions Routes - Unit Tests", () => {
         .send({ code: 123 });
 
       expect(response.status).toBe(400);
-      expect(response.body.error).toBe("Missing or invalid code");
+      expect(response.body.error).toBe("Missing or invalid snapshot body");
     });
 
     it("should accept empty string as code", async () => {
