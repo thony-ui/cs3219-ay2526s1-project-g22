@@ -993,13 +993,11 @@ async function persistSnapshot(
   baseUrl: string,
   sessionId: string,
   code?: string,
-  language?: string,
-  lastRequestId?: string
+  language?: string
 ) {
   const body: Record<string, unknown> = {};
   if (typeof code === "string") body.code = code;
   if (typeof language === "string") body.language = language;
-  if (typeof lastRequestId === "string") body.last_request_id = lastRequestId;
   if (Object.keys(body).length === 0) return;
   await axiosInstance.patch(
     `${baseUrl}/sessions/${sessionId}/snapshot`,
