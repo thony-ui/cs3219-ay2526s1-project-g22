@@ -354,7 +354,32 @@ export default function MatchingPage() {
     setIsSubmitting(true);
 
     try {
-      // navigate user into their existing room
+      // check the current session status
+      const res = await axiosInstance.get(
+        `/api/collaboration-service/sessions/${activeSession.id}`
+      );
+
+      const session = res?.data;
+      if (!session) {
+        setAlertInfo({
+          message: "Unable to find session information.",
+          variant: "destructive",
+        });
+        setActiveSession(null);
+        return;
+      }
+
+      if (session.status === "completed") {
+        // hide the button and notify user
+        setActiveSession(null);
+        setAlertInfo({
+          message: "This session has already been completed.",
+          variant: "default",
+        });
+        return;
+      }
+
+      // navigate to the session room
       await router.push(`/room/${activeSession.id}`);
     } catch (err) {
       console.error("Failed to rejoin session:", err);
