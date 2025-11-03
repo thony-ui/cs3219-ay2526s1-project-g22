@@ -91,6 +91,10 @@ export default function CodeEditor({
   const ydocRef = useRef<Y.Doc>(new Y.Doc());
   const ytextRef = useRef<Y.Text>(ydocRef.current.getText("codemirror"));
   const awarenessRef = useRef<Awareness>(new Awareness(ydocRef.current));
+  // whether we've received any remote Yjs state (update or sync) for this join
+  const stateReceivedRef = useRef<boolean>(false);
+  // timeout id used to schedule a fallback initial insert when no remote state arrives
+  const initialInsertTimeoutRef = useRef<number | null>(null);
   useEffect(() => {
     const awareness = awarenessRef.current;
     awareness.setLocalStateField("user", {
@@ -172,6 +176,12 @@ export default function CodeEditor({
 
       // apply yjs updates
       channel.on("broadcast", { event: "yjs-update" }, (payload) => {
+        // mark that we received remote state and cancel any fallback insert
+        stateReceivedRef.current = true;
+        if (initialInsertTimeoutRef.current) {
+          clearTimeout(initialInsertTimeoutRef.current);
+          initialInsertTimeoutRef.current = null;
+        }
         const update = new Uint8Array(payload.payload.update);
         Y.applyUpdate(ydocRef.current, update);
       });
@@ -198,6 +208,12 @@ export default function CodeEditor({
       channel.on("broadcast", { event: "yjs-sync" }, (payload) => {
         const { to, update } = payload.payload;
         if (to === userId) {
+          // mark that we received remote state and cancel any fallback insert
+          stateReceivedRef.current = true;
+          if (initialInsertTimeoutRef.current) {
+            clearTimeout(initialInsertTimeoutRef.current);
+            initialInsertTimeoutRef.current = null;
+          }
           Y.applyUpdate(ydocRef.current, new Uint8Array(update));
           console.info("Applied full Yjs document state from peer");
         }
@@ -271,14 +287,22 @@ export default function CodeEditor({
         }
       );
 
-      // init code: insert initial only if Y.Text is empty, with small
-      // randomized delay to avoid both clients inserting the same snippet
-      // concurrently (reduces duplicate snippets).
+      // schedule a fallback initial insert only if no remote state arrives
+      // within a short window. This prevents a refresh on one user from
+      // overwriting the live document owned by other peers.
       if (initialCode && ytextRef.current.length === 0) {
-        const delay = 50 + Math.floor(Math.random() * 150);
-        setTimeout(async () => {
+        // randomized small delay + wait-for-remote-state timeout
+        const randomDelay = 50 + Math.floor(Math.random() * 150);
+        const fallbackDelay = 700 + randomDelay; // ms
+        // clear any previous fallback
+        if (initialInsertTimeoutRef.current) {
+          clearTimeout(initialInsertTimeoutRef.current);
+          initialInsertTimeoutRef.current = null;
+        }
+        initialInsertTimeoutRef.current = window.setTimeout(async () => {
+          // only insert if we haven't received remote state and text is still empty
           try {
-            if (ytextRef.current.length === 0) {
+            if (!stateReceivedRef.current && ytextRef.current.length === 0) {
               ytextRef.current.insert(0, initialCode);
               // best-effort persist so future joins pick it up from the session
               await persistSnapshot(baseApiUrl, sessionId, initialCode).catch(
@@ -287,8 +311,10 @@ export default function CodeEditor({
             }
           } catch (err) {
             // ignore
+          } finally {
+            initialInsertTimeoutRef.current = null;
           }
-        }, delay);
+        }, fallbackDelay) as unknown as number;
       }
 
       channelRef.current = channel;
@@ -370,6 +396,11 @@ export default function CodeEditor({
       if (snapshotIntervalRef.current)
         clearInterval(snapshotIntervalRef.current);
       channelRef.current?.unsubscribe();
+      // clear any pending fallback initial insert
+      if (initialInsertTimeoutRef.current) {
+        clearTimeout(initialInsertTimeoutRef.current);
+        initialInsertTimeoutRef.current = null;
+      }
     };
   }, []);
 
