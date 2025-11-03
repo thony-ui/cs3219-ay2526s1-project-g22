@@ -53,6 +53,24 @@ export default function CodeEditor({
 
   const [selectedLanguage, setSelectedLanguage] =
     useState<string>("JavaScript");
+  // proposal / confirmation UI state
+  const [incomingProposal, setIncomingProposal] = useState<
+    { from?: string; language: string } | null
+  >(null);
+  const [proposalPending, setProposalPending] = useState<{
+    language: string;
+    timeoutId: number | null;
+  } | null>(null);
+  const prevLanguageRef = useRef<string | null>(null);
+  // track pending proposal in a ref so realtime callbacks see the up-to-date value
+  const pendingProposalRef = useRef<{
+    language: string;
+    timeoutId: number | null;
+  } | null>(null);
+  // stable client id used in realtime messages when `userId` may be undefined
+  const clientIdRef = useRef<string>(
+    userId || `local-${Math.random().toString(36).slice(2, 9)}`
+  );
   const [submissionHistory, setSubmissionHistory] = useState<
     SubmissionResult[]
   >([]);
@@ -192,6 +210,24 @@ export default function CodeEditor({
         applyAwarenessUpdate(awarenessRef.current, update, "remote");
       });
 
+      // incoming language proposal from another client
+      channel.on(
+        "broadcast",
+        { event: "language-proposal" },
+        (payload: { payload?: any }) => {
+          try {
+            const pl = payload.payload ?? {};
+            const lang = pl.language as string | undefined;
+            const from = pl.from as string | undefined;
+            if (!lang || !from || from === clientIdRef.current) return;
+            // show incoming proposal to local user
+            setIncomingProposal({ from, language: lang });
+          } catch (err) {
+            // ignore
+          }
+        }
+      );
+
       // react to language-change broadcasts (update UI language selection)
       channel.on(
         "broadcast",
@@ -211,10 +247,76 @@ export default function CodeEditor({
         }
       );
 
+      // language response to proposals (only relevant to originator)
+      channel.on(
+        "broadcast",
+        { event: "language-response" },
+        (payload: { payload?: any }) => {
+          try {
+            const pl = payload.payload ?? {};
+            const to = pl.to as string | undefined;
+            const accept = pl.accept as boolean | undefined;
+            const lang = pl.language as string | undefined;
+            const from = pl.from as string | undefined;
+            // only handle responses addressed to this client
+            if (!to || to !== clientIdRef.current) return;
+            // if originator and waiting on proposal, process first response
+            const pending = pendingProposalRef.current;
+            if (pending && lang && typeof accept === "boolean") {
+              // clear pending timeout
+              if (pending.timeoutId) {
+                clearTimeout(pending.timeoutId);
+              }
+              pendingProposalRef.current = null;
+              setProposalPending(null);
+              if (accept) {
+                // apply language change (originator applies and broadcasts)
+                try {
+                  setSelectedLanguage(lang);
+                  const snippet = getSnippetForLanguage(lang);
+                  if (snippet !== null) {
+                    ydocRef.current.transact(() => {
+                      ytextRef.current.delete(0, ytextRef.current.length);
+                      ytextRef.current.insert(0, snippet);
+                    });
+                  }
+                } catch (err) {
+                  // ignore
+                }
+                // persist authoritative language
+                persistSnapshot(baseApiUrl, sessionId, undefined, lang)
+                  .catch(() => void 0)
+                  .finally(() => {
+                    // notify peers about accepted change
+                    try {
+                      channelRef.current?.send({
+                        type: "broadcast",
+                        event: "language-change",
+                        payload: { language: lang },
+                      });
+                    } catch (err) {
+                      // ignore
+                    }
+                  });
+              } else {
+                // someone rejected; notify originator UI (no-op for now)
+                  if (prevLanguageRef.current) {
+                    setSelectedLanguage(prevLanguageRef.current);
+                    prevLanguageRef.current = null;
+                  }
+                // could show a toast here in future
+              }
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      );
+
       // send a vector update of the full document state to the new joiner
       channel.on("broadcast", { event: "yjs-request-state" }, (payload) => {
-        const { from } = payload.payload;
-        if (!from || from === userId) return;
+  const { from } = payload.payload;
+  if (!from || from === clientIdRef.current) return;
         const update = Y.encodeStateAsUpdate(ydocRef.current);
         channel.send({
           type: "broadcast",
@@ -225,8 +327,8 @@ export default function CodeEditor({
 
       // --- Apply full Yjs state received from peer ---
       channel.on("broadcast", { event: "yjs-sync" }, (payload) => {
-        const { to, update } = payload.payload;
-        if (to === userId) {
+  const { to, update } = payload.payload;
+  if (to === clientIdRef.current) {
           // mark that we received remote state and cancel any fallback insert
           stateReceivedRef.current = true;
           if (initialInsertTimeoutRef.current) {
@@ -270,7 +372,7 @@ export default function CodeEditor({
           channel.send({
             type: "broadcast",
             event: "yjs-request-state",
-            payload: { from: userId },
+            payload: { from: clientIdRef.current },
           });
         }
       });
@@ -461,6 +563,30 @@ export default function CodeEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [endSession]);
 
+  // handlers for user accepting/rejecting an incoming proposal
+  const respondToProposal = useCallback(
+    (accept: boolean) => {
+      if (!incomingProposal) return;
+      try {
+        channelRef.current?.send({
+          type: "broadcast",
+          event: "language-response",
+          payload: {
+            to: incomingProposal.from,
+            from: clientIdRef.current,
+            language: incomingProposal.language,
+            accept,
+          },
+        });
+      } catch (err) {
+        // ignore
+      }
+      // clear incoming prompt UI
+      setIncomingProposal(null);
+    },
+    [incomingProposal, userId]
+  );
+
   const extensions = useMemo(() => {
     const langConfig =
       languageMap[selectedLanguage as keyof typeof languageMap];
@@ -485,37 +611,38 @@ export default function CodeEditor({
     (language: string) => {
       try {
         // Update UI state immediately
-        setSelectedLanguage(language);
-
-        // If we have a snippet for this language, replace the Yjs document
-        // locally so the change is propagated to peers via Yjs updates.
-        const snippet = getSnippetForLanguage(language);
-        if (snippet !== null) {
-          try {
-            ydocRef.current.transact(() => {
-              ytextRef.current.delete(0, ytextRef.current.length);
-              ytextRef.current.insert(0, snippet);
-            });
-          } catch (err) {
-            // ignore local apply errors
-          }
+        // Instead of applying immediately, send a proposal to peers and wait
+        // for their response. The originator will apply the change only when
+        // another participant accepts.
+        try {
+          // remember previous language so we can revert on rejection/timeout
+          prevLanguageRef.current = selectedLanguage;
+          channelRef.current?.send({
+            type: "broadcast",
+            event: "language-proposal",
+            payload: { language, from: userId },
+          });
+        } catch (err) {
+          // ignore
         }
 
-        // Persist authoritative language to session row (best-effort)
-        persistSnapshot(baseApiUrl, sessionId, undefined, language)
-          .catch(() => void 0)
-          .then(() => {
-            // notify other connected clients so their UI reflects the change
-            try {
-              channelRef.current?.send({
-                type: "broadcast",
-                event: "language-change",
-                payload: { language },
-              });
-            } catch (err) {
-              // ignore
-            }
-          });
+        // show local pending UI and prepare a timeout to abort if nobody answers
+        if (proposalPending && proposalPending.timeoutId) {
+          clearTimeout(proposalPending.timeoutId);
+        }
+        const timeoutId = window.setTimeout(() => {
+          // no response -> clear pending state
+          setProposalPending(null);
+          pendingProposalRef.current = null;
+          // revert UI selection
+          if (prevLanguageRef.current) {
+            setSelectedLanguage(prevLanguageRef.current);
+            prevLanguageRef.current = null;
+          }
+        }, 10000) as unknown as number;
+        const pending = { language, timeoutId };
+        pendingProposalRef.current = pending;
+        setProposalPending(pending);
       } catch (err) {
         // ignore
       }
@@ -557,6 +684,57 @@ export default function CodeEditor({
             <p className="text-sm text-gray-300">
               Redirecting you to the home page...
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Incoming proposal modal */}
+      {incomingProposal && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative bg-white dark:bg-slate-900 rounded-lg p-6 w-full max-w-md mx-4 shadow-lg z-50">
+            <h3 className="text-lg font-semibold mb-2">Language change proposed</h3>
+            <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">
+              User <strong>{incomingProposal.from}</strong> proposes to change the editor language to <strong>{incomingProposal.language}</strong>.
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => respondToProposal(false)}
+                className="px-3 py-1 rounded bg-slate-200 dark:bg-slate-800"
+              >
+                Reject
+              </button>
+              <button
+                onClick={() => respondToProposal(true)}
+                className="px-3 py-1 rounded bg-blue-600 text-white"
+              >
+                Accept
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Originator pending banner */}
+      {proposalPending && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9997]">
+          <div className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200 px-4 py-2 rounded shadow">
+            Waiting for other participants to accept language change to <strong>{proposalPending.language}</strong>...
+              <button
+              onClick={() => {
+                if (proposalPending.timeoutId) clearTimeout(proposalPending.timeoutId);
+                // clear pending ref and revert selection
+                pendingProposalRef.current = null;
+                if (prevLanguageRef.current) {
+                  setSelectedLanguage(prevLanguageRef.current);
+                  prevLanguageRef.current = null;
+                }
+                setProposalPending(null);
+              }}
+              className="ml-3 underline text-sm"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
