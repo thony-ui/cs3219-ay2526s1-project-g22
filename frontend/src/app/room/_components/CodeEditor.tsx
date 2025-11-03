@@ -156,6 +156,33 @@ export default function CodeEditor({
           // ignore
         }
       }
+      // If we have an incoming proposal (we are the requested) then send an
+      // automatic rejection to the originator so they aren't left waiting.
+      const incoming = incomingProposalRef.current;
+      if (incoming && incoming.from && channelRef.current) {
+        try {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "language-response",
+            payload: {
+              to: incoming.from,
+              from: clientIdRef.current,
+              language: incoming.language,
+              accept: false,
+            },
+          });
+        } catch (err) {
+          // ignore
+        }
+        try {
+          sessionStorage.setItem(
+            `pp-rejected-${sessionId}`,
+            JSON.stringify({ language: incoming.language, from: incoming.from, ts: Date.now() })
+          );
+        } catch (err) {
+          // ignore
+        }
+      }
     };
 
     window.addEventListener("beforeunload", onBeforeUnload);
@@ -173,6 +200,26 @@ export default function CodeEditor({
         const lang = parsed?.language;
         setProposalNotice(
           `Your pending language change to ${lang || "<unknown>"} was cancelled due to a refresh`
+        );
+        window.setTimeout(() => setProposalNotice(null), 5000);
+        sessionStorage.removeItem(storageKey);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [sessionId]);
+
+  // If we previously auto-rejected by refresh (the requested refreshed while
+  // a proposal was incoming) show a transient notice on reload.
+  useEffect(() => {
+    const storageKey = `pp-rejected-${sessionId}`;
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw || "{}");
+        const lang = parsed?.language;
+        setProposalNotice(
+          `You refreshed while a proposal was pending; the proposal for ${lang || "<unknown>"} was auto-rejected.`
         );
         window.setTimeout(() => setProposalNotice(null), 5000);
         sessionStorage.removeItem(storageKey);
