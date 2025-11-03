@@ -192,6 +192,25 @@ export default function CodeEditor({
         applyAwarenessUpdate(awarenessRef.current, update, "remote");
       });
 
+      // react to language-change broadcasts (update UI language selection)
+      channel.on(
+        "broadcast",
+        { event: "language-change" },
+        (payload: { payload?: any }) => {
+          try {
+            const pl = payload.payload ?? {};
+            const lang = pl.language as string | undefined;
+            if (lang && typeof lang === "string") {
+              // update selected language in the UI; do NOT persist here
+              // (originator already persisted and possibly updated Yjs doc)
+              setSelectedLanguage(lang);
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      );
+
       // send a vector update of the full document state to the new joiner
       channel.on("broadcast", { event: "yjs-request-state" }, (payload) => {
         const { from } = payload.payload;
@@ -353,6 +372,14 @@ export default function CodeEditor({
               ? session.current_code
               : "";
 
+          // If the session has an authoritative language selection, use it
+          // to initialise the editor language for all participants.
+          const sessionLang =
+            typeof session.current_language === "string" && session.current_language
+              ? session.current_language
+              : undefined;
+          if (sessionLang) setSelectedLanguage(sessionLang);
+
           const questionSnippet =
             question?.codeSnippets && question.codeSnippets.length > 0
               ? // try a few common fields for snippet content
@@ -475,9 +502,20 @@ export default function CodeEditor({
         }
 
         // Persist authoritative language to session row (best-effort)
-        persistSnapshot(baseApiUrl, sessionId, undefined, language).catch(
-          () => void 0
-        );
+        persistSnapshot(baseApiUrl, sessionId, undefined, language)
+          .catch(() => void 0)
+          .then(() => {
+            // notify other connected clients so their UI reflects the change
+            try {
+              channelRef.current?.send({
+                type: "broadcast",
+                event: "language-change",
+                payload: { language },
+              });
+            } catch (err) {
+              // ignore
+            }
+          });
       } catch (err) {
         // ignore
       }
