@@ -57,6 +57,11 @@ export default function CodeEditor({
   const [incomingProposal, setIncomingProposal] = useState<
     { from?: string; language: string } | null
   >(null);
+  // keep a ref copy so realtime callbacks (which close over values) can
+  // reliably inspect/clear the current incoming proposal
+  const incomingProposalRef = useRef<{ from?: string; language: string } | null>(
+    null
+  );
   const [proposalPending, setProposalPending] = useState<{
     language: string;
     timeoutId: number | null;
@@ -121,6 +126,61 @@ export default function CodeEditor({
       color: "#FF0000",
     });
   }, [userId]);
+
+  // keep ref in sync with state so realtime handlers can read latest value
+  useEffect(() => {
+    incomingProposalRef.current = incomingProposal;
+  }, [incomingProposal]);
+
+  // If the originator refreshes while a proposal is pending, attempt to
+  // notify peers and remember in sessionStorage so the initiator sees a
+  // cancellation notice after reload.
+  useEffect(() => {
+    const storageKey = `pp-cancelled-${sessionId}`;
+
+    const onBeforeUnload = () => {
+      const pending = pendingProposalRef.current;
+      if (pending && channelRef.current) {
+        try {
+          channelRef.current.send({
+            type: "broadcast",
+            event: "language-cancel",
+            payload: { from: clientIdRef.current, language: pending.language },
+          });
+        } catch (err) {
+          // ignore
+        }
+        try {
+          sessionStorage.setItem(storageKey, JSON.stringify({ language: pending.language, ts: Date.now() }));
+        } catch (err) {
+          // ignore
+        }
+      }
+    };
+
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [sessionId]);
+
+  // On mount, check if we previously cancelled due to a refresh and show
+  // a transient notice to the initiator.
+  useEffect(() => {
+    const storageKey = `pp-cancelled-${sessionId}`;
+    try {
+      const raw = sessionStorage.getItem(storageKey);
+      if (raw) {
+        const parsed = JSON.parse(raw || "{}");
+        const lang = parsed?.language;
+        setProposalNotice(
+          `Your pending language change to ${lang || "<unknown>"} was cancelled due to a refresh`
+        );
+        window.setTimeout(() => setProposalNotice(null), 5000);
+        sessionStorage.removeItem(storageKey);
+      }
+    } catch (err) {
+      // ignore
+    }
+  }, [sessionId]);
 
   const executeCode = async () => {
     const langConfig =
@@ -259,7 +319,9 @@ export default function CodeEditor({
             const lang = pl.language as string | undefined;
             if (!from || from === clientIdRef.current) return;
             // if we have an incoming proposal from that originator, clear it
-            if (incomingProposal && incomingProposal.from === from) {
+            const cur = incomingProposalRef.current;
+            if (cur && cur.from === from) {
+              incomingProposalRef.current = null;
               setIncomingProposal(null);
               setProposalNotice(
                 `User ${from} cancelled language change to ${lang || "<unknown>"}`
@@ -612,6 +674,7 @@ export default function CodeEditor({
         // ignore
       }
       // clear incoming prompt UI
+      incomingProposalRef.current = null;
       setIncomingProposal(null);
     },
     [incomingProposal, userId]
