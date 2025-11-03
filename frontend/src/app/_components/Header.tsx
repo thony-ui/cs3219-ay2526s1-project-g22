@@ -14,7 +14,6 @@ import { User, LogOut, Code2, History } from "lucide-react";
 import Link from "next/link";
 import { useUser } from "@/contexts/user-context";
 import { signOut } from "@/lib/auth";
-import SoloPracticeButton from "./SoloPracticeButton";
 
 export default function Header() {
   const { user } = useUser();
@@ -36,8 +35,6 @@ export default function Header() {
             </div>
           </Link>
           <div className="flex items-center space-x-3">
-            <SoloPracticeButton />
-
             <Link href="/history">
               <Button className="hover:bg-slate-800">
                 <History className="mr-2 h-4 w-4" />

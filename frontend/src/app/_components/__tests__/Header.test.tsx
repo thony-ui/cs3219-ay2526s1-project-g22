@@ -26,11 +26,6 @@ jest.mock("@/lib/auth", () => ({
   signOut: jest.fn(),
 }));
 
-jest.mock("../SoloPracticeButton", () => ({
-  __esModule: true,
-  default: () => <button>Solo Practice</button>,
-}));
-
 jest.mock("@/components/ui/button", () => ({
   __esModule: true,
   Button: ({
@@ -130,12 +125,6 @@ describe("Header", () => {
 
       const homeLink = screen.getByText("CodeCollab").closest("a");
       expect(homeLink).toHaveAttribute("href", "/");
-    });
-
-    it("renders solo practice button", () => {
-      render(<Header />);
-
-      expect(screen.getByText("Solo Practice")).toBeInTheDocument();
     });
 
     it("renders history button", () => {
