@@ -38,11 +38,6 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex items-center space-x-4">
-              <SoloPracticeButton
-                variant="ghost"
-                className="text-blue-200 hover:text-white hover:bg-blue-800/30"
-                onRequireLogin={() => setDisplayLogin(true)}
-              />
               <Button
                 variant="ghost"
                 className="text-blue-200 hover:text-white hover:bg-blue-800/30"
