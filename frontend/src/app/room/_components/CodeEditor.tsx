@@ -61,6 +61,7 @@ export default function CodeEditor({
     language: string;
     timeoutId: number | null;
   } | null>(null);
+  const [proposalNotice, setProposalNotice] = useState<string | null>(null);
   const prevLanguageRef = useRef<string | null>(null);
   // track pending proposal in a ref so realtime callbacks see the up-to-date value
   const pendingProposalRef = useRef<{
@@ -247,6 +248,30 @@ export default function CodeEditor({
         }
       );
 
+      // originator cancelled a previously-sent proposal
+      channel.on(
+        "broadcast",
+        { event: "language-cancel" },
+        (payload: { payload?: any }) => {
+          try {
+            const pl = payload.payload ?? {};
+            const from = pl.from as string | undefined;
+            const lang = pl.language as string | undefined;
+            if (!from || from === clientIdRef.current) return;
+            // if we have an incoming proposal from that originator, clear it
+            if (incomingProposal && incomingProposal.from === from) {
+              setIncomingProposal(null);
+              setProposalNotice(
+                `User ${from} cancelled language change to ${lang || "<unknown>"}`
+              );
+              window.setTimeout(() => setProposalNotice(null), 5000);
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      );
+
       // language response to proposals (only relevant to originator)
       channel.on(
         "broadcast",
@@ -304,6 +329,11 @@ export default function CodeEditor({
                     setSelectedLanguage(prevLanguageRef.current);
                     prevLanguageRef.current = null;
                   }
+                  // show rejection notice briefly
+                  setProposalNotice(
+                    `User ${from || "peer"} rejected the language change to ${lang}`
+                  );
+                  window.setTimeout(() => setProposalNotice(null), 5000);
                 // could show a toast here in future
               }
             }
@@ -620,7 +650,7 @@ export default function CodeEditor({
           channelRef.current?.send({
             type: "broadcast",
             event: "language-proposal",
-            payload: { language, from: userId },
+            payload: { language, from: clientIdRef.current },
           });
         } catch (err) {
           // ignore
@@ -721,20 +751,40 @@ export default function CodeEditor({
           <div className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200 px-4 py-2 rounded shadow">
             Waiting for other participants to accept language change to <strong>{proposalPending.language}</strong>...
               <button
-              onClick={() => {
-                if (proposalPending.timeoutId) clearTimeout(proposalPending.timeoutId);
-                // clear pending ref and revert selection
-                pendingProposalRef.current = null;
-                if (prevLanguageRef.current) {
-                  setSelectedLanguage(prevLanguageRef.current);
-                  prevLanguageRef.current = null;
-                }
-                setProposalPending(null);
-              }}
-              className="ml-3 underline text-sm"
-            >
-              Cancel
-            </button>
+                onClick={() => {
+                  // send cancel notification to peers so they can clear their prompt
+                  try {
+                    const lang = proposalPending?.language;
+                    channelRef.current?.send({
+                      type: "broadcast",
+                      event: "language-cancel",
+                      payload: { from: clientIdRef.current, language: lang },
+                    });
+                  } catch (err) {
+                    // ignore
+                  }
+                  if (proposalPending.timeoutId) clearTimeout(proposalPending.timeoutId);
+                  // clear pending ref and revert selection
+                  pendingProposalRef.current = null;
+                  if (prevLanguageRef.current) {
+                    setSelectedLanguage(prevLanguageRef.current);
+                    prevLanguageRef.current = null;
+                  }
+                  setProposalPending(null);
+                }}
+                className="ml-3 underline text-sm"
+              >
+                Cancel
+              </button>
+          </div>
+        </div>
+      )}
+
+      {/* Transient notice for cancellations/rejections */}
+      {proposalNotice && (
+        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9997]">
+          <div className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 px-4 py-2 rounded shadow">
+            {proposalNotice}
           </div>
         </div>
       )}
