@@ -723,40 +723,40 @@ export default function CodeEditor({
     [incomingProposal, userId]
   );
 
-  const extensions = useMemo(() => {
-    const langConfig =
-      languageMap[selectedLanguage as keyof typeof languageMap];
-    const langExtensions = langConfig?.extension || [
-      javascript(),
-      indentUnit.of("  "),
-    ];
-    // Add a small bottom padding so final line is reachable.
-    const editorPaddingTheme = EditorView.theme({
-      '&': { height: '100%' },
-      '.cm-scroller': { paddingBottom: '3.5rem' },
-    });
+    const extensions = useMemo(() => {
+      const langConfig =
+        languageMap[selectedLanguage as keyof typeof languageMap];
+      const langExtensions = langConfig?.extension || [
+        javascript(),
+        indentUnit.of("  "),
+      ];
+      // Add a small bottom padding so final line is reachable.
+      const editorPaddingTheme = EditorView.theme({
+        '&': { height: '100%' },
+        '.cm-scroller': { paddingBottom: '3.5rem' },
+      });
 
-    const base = [
-      ...langExtensions,
-      oneDark,
-      indentOnInput(),
-      keymap.of([indentWithTab]),
-      EditorView.lineWrapping,
-      editorPaddingTheme,
-    ];
+      const base = [
+        ...langExtensions,
+        oneDark,
+        indentOnInput(),
+        keymap.of([indentWithTab]),
+        EditorView.lineWrapping,
+        editorPaddingTheme,
+      ];
 
-    // When no language is selected, make the editor non-editable and readOnly
-    // so users are encouraged to pick a language first. Programmatic updates
-    // are still allowed (we still can insert snippets into Y.Text).
-    if (!selectedLanguage) {
-      base.push(EditorView.editable.of(false));
-      base.push(EditorState.readOnly.of(true));
-    }
+      // When no language is selected, make the editor non-editable and readOnly
+      // so users are encouraged to pick a language first. Programmatic updates
+      // are still allowed (we still can insert snippets into Y.Text).
+      if (!selectedLanguage) {
+        base.push(EditorView.editable.of(false));
+        base.push(EditorState.readOnly.of(true));
+      }
 
-    base.push(yCollab(ytextRef.current, awarenessRef.current, { undoManager: false }));
+      base.push(yCollab(ytextRef.current, awarenessRef.current, { undoManager: false }));
 
-    return base;
-  }, [selectedLanguage]);
+      return base;
+    }, [selectedLanguage]);
 
   // Persist language selection to backend so the session row's
   // `current_language` column stays authoritative. This is a lightweight
@@ -844,23 +844,28 @@ export default function CodeEditor({
 
       {/* Incoming proposal modal */}
       {incomingProposal && (
-        <div className="fixed inset-0 z-[9998] flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" />
-          <div className="relative bg-white dark:bg-slate-900 rounded-lg p-6 w-full max-w-md mx-4 shadow-lg z-50">
-            <h3 className="text-lg font-semibold mb-2">Language change proposed</h3>
-            <p className="text-sm text-slate-700 dark:text-slate-300 mb-4">
-              User <strong>{incomingProposal.from}</strong> proposes to change the editor language to <strong>{incomingProposal.language}</strong>.
+        <div
+          className="fixed inset-0 z-[9999] flex items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Language change proposed"
+        >
+          <div className="absolute inset-0 bg-black/30" />
+          <div className="relative bg-slate-900/95 text-white rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl border border-slate-700/40 z-50">
+            <h3 className="text-lg font-semibold mb-2 text-white">Language change proposed</h3>
+            <p className="text-sm text-slate-300 mb-4">
+              User <strong className="text-white">{incomingProposal.from}</strong> proposes to change the editor language to <strong className="text-white">{incomingProposal.language}</strong>.
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => respondToProposal(false)}
-                className="px-3 py-1 rounded bg-slate-200 dark:bg-slate-800"
+                className="px-3 py-1 rounded bg-slate-700/60 text-slate-100 hover:bg-slate-700/80"
               >
                 Reject
               </button>
               <button
                 onClick={() => respondToProposal(true)}
-                className="px-3 py-1 rounded bg-blue-600 text-white"
+                className="px-3 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white"
               >
                 Accept
               </button>
@@ -873,7 +878,7 @@ export default function CodeEditor({
       {proposalPending && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9997]">
           <div className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200 px-4 py-2 rounded shadow">
-            Waiting for other participant to accept language change to <strong>{proposalPending.language}</strong>...
+            Waiting for other participant to accept language change to <strong>{proposalPending.language}</strong>
               <button
                 onClick={() => {
                   // send cancel notification to peers so they can clear their prompt
