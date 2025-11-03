@@ -21,7 +21,7 @@ import {
 import { ArrowUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/supabase-client";
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown from "react-markdown";
 
 interface HistoryTableProps {
   data: HistoryData[];
@@ -47,9 +47,7 @@ const DifficultyBadge = ({ difficulty }: { difficulty: string }) => {
       colorClasses = "bg-gray-500";
   }
 
-  return (
-    <span className={cn(baseClasses, colorClasses)}>{difficulty}</span>
-  );
+  return <span className={cn(baseClasses, colorClasses)}>{difficulty}</span>;
 };
 
 async function safeErrMsg(res: Response) {
@@ -104,7 +102,7 @@ export default function HistoryTable({ data }: HistoryTableProps) {
   const [open, setOpen] = useState(false);
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [selectedTitle, setSelectedTitle] = useState<string>("");
-  const [aiResponse, setAiResponse] = useState('');
+  const [aiResponse, setAiResponse] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   const allTags = Array.from(
@@ -177,7 +175,9 @@ export default function HistoryTable({ data }: HistoryTableProps) {
       {/* Tag Filters Section */}
       {allTags.length > 0 && (
         <div className="flex flex-wrap gap-2 p-4 border-b border-blue-800/30">
-          <span className="text-sm font-medium text-blue-200 mr-2">Filters:</span>
+          <span className="text-sm font-medium text-blue-200 mr-2">
+            Filters:
+          </span>
           {allTags.map((tag) => {
             const active = selectedTags.includes(tag);
             return (
@@ -200,12 +200,20 @@ export default function HistoryTable({ data }: HistoryTableProps) {
 
       {/* Table Section */}
       <div className="min-h-[400px] transition-all overflow-x-auto">
-        <Table className="bg-slate-900"> {/* Ensure Table body is dark */}
+        <Table className="bg-slate-900">
+          {" "}
+          {/* Ensure Table body is dark */}
           <TableHeader>
             <TableRow className="bg-slate-800/70 border-b border-blue-800/30 hover:bg-slate-800/70">
-              <TableHead className="text-blue-300 font-semibold">Interviewer</TableHead>
-              <TableHead className="text-blue-300 font-semibold">Interviewee</TableHead>
-              <TableHead className="text-blue-300 font-semibold">Question</TableHead>
+              <TableHead className="text-blue-300 font-semibold">
+                Interviewer
+              </TableHead>
+              <TableHead className="text-blue-300 font-semibold">
+                Interviewee
+              </TableHead>
+              <TableHead className="text-blue-300 font-semibold">
+                Question
+              </TableHead>
 
               <TableHead
                 className="cursor-pointer select-none text-blue-300 font-semibold"
@@ -222,7 +230,9 @@ export default function HistoryTable({ data }: HistoryTableProps) {
                 </div>
               </TableHead>
 
-              <TableHead className="text-blue-300 font-semibold">Tags</TableHead>
+              <TableHead className="text-blue-300 font-semibold">
+                Tags
+              </TableHead>
 
               <TableHead
                 className="text-right cursor-pointer select-none text-blue-300 font-semibold"
@@ -233,14 +243,16 @@ export default function HistoryTable({ data }: HistoryTableProps) {
                   <ArrowUpDown
                     className={cn(
                       "h-4 w-4 transition-transform text-blue-400",
-                      sortKey === "date" && sortKey === "date" && !sortAsc && "rotate-180"
+                      sortKey === "date" &&
+                        sortKey === "date" &&
+                        !sortAsc &&
+                        "rotate-180"
                     )}
                   />
                 </div>
               </TableHead>
             </TableRow>
           </TableHeader>
-
           <TableBody>
             {sortedData.length === 0 ? (
               <TableRow className="hover:bg-slate-900">
@@ -316,14 +328,12 @@ export default function HistoryTable({ data }: HistoryTableProps) {
           setOpen(isOpen);
           // Reset AI state when dialog closes
           if (!isOpen) {
-            setAiResponse('');
+            setAiResponse("");
             setIsLoading(false);
           }
         }}
       >
-        <DialogContent
-          className="bg-slate-900 border-blue-800/50 text-white shadow-xl sm:max-w-5xl lg:max-w-7xl"
-        >
+        <DialogContent className="bg-slate-900 border-blue-800/50 text-white shadow-xl sm:max-w-5xl lg:max-w-7xl">
           <DialogHeader className="border-b border-blue-800/30 pb-3">
             <DialogTitle className="text-xl font-bold text-blue-400">
               Code for: {selectedTitle}
@@ -348,8 +358,13 @@ export default function HistoryTable({ data }: HistoryTableProps) {
                   onClick={async (e) => {
                     e.stopPropagation();
                     setIsLoading(true);
-                    setAiResponse('');
+                    setAiResponse("");
                     try {
+                      if (!selectedCode) {
+                        setAiResponse("Please select a code snippet first.");
+                        return;
+                      }
+
                       const data = await handleButtonClick(selectedCode);
                       setAiResponse(data.response);
                     } catch (error) {
@@ -357,7 +372,7 @@ export default function HistoryTable({ data }: HistoryTableProps) {
                       setAiResponse(
                         error instanceof Error
                           ? error.message
-                          : 'Failed to fetch response.'
+                          : "Failed to fetch response."
                       );
                     } finally {
                       setIsLoading(false);
@@ -375,7 +390,7 @@ export default function HistoryTable({ data }: HistoryTableProps) {
                     <pre className="whitespace-pre-wrap break-all">
                       {selectedCode}
                     </pre>
-                    ) : (
+                  ) : (
                     <p className="text-blue-300/70">
                       No code submitted for this session.
                     </p>

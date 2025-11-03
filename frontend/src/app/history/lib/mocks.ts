@@ -1,6 +1,3 @@
-import { Dispatch, SetStateAction } from "react";
-import { HistoryData } from "../types/HistoryData";
-
 export const mockdata = [
   {
     id: "7d9b5c1f-7938-44a8-a514-63e7b282c4c5",
