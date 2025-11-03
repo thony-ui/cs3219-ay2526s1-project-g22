@@ -177,15 +177,35 @@ export default function RoomPage({
 function ChatWrapper({ sessionId }: { sessionId: string }) {
   // Start with chat collapsed/closed by default
   const [collapsed, setCollapsed] = useState(true);
-  // keep the chat hidden on small screens as before; overlay on larger
-  // screens so opening the chat does not shift the editor layout.
+  // When collapsed, show only a floating chat button in the bottom-right
+  // corner. When expanded, render the chat overlay as before.
+  if (collapsed) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        <button
+          aria-label="Open chat"
+          onClick={() => setCollapsed(false)}
+          className="w-12 h-12 rounded-full bg-slate-700/80 text-white flex items-center justify-center shadow-lg"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path d="M20 2H4a2 2 0 0 0-2 2v14l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zM6 9h12v2H6V9zm8 4H6v-2h8v2zm2-6H6V5h10v2z" />
+          </svg>
+        </button>
+      </div>
+    );
+  }
+
+  // expanded overlay
   const baseClass = "hidden md:block";
-  // Use responsive width classes so the overlay occupies the correct
-  // horizontal space when expanded. Position absolutely on md+ screens
-  // to overlay the editor (parent container is `relative`).
-  const overlayClasses =
-    "md:absolute md:right-0 md:top-0 md:bottom-0 md:z-50 h-full";
-  const widthClass = collapsed ? "md:w-12" : "md:w-80";
+  const overlayClasses = "md:absolute md:right-0 md:top-0 md:bottom-0 md:z-50 h-full";
+  const widthClass = "md:w-80";
 
   return (
     <div className={`${baseClass} ${overlayClasses} ${widthClass}`}>
