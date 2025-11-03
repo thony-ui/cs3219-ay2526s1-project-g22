@@ -208,12 +208,16 @@ function ChatWrapper({ sessionId }: { sessionId: string }) {
   const widthClass = "md:w-80";
 
   return (
-    <div className={`${baseClass} ${overlayClasses} ${widthClass}`}>
-      <ChatPanel
-        sessionId={sessionId}
-        collapsed={collapsed}
-        setCollapsed={setCollapsed}
-      />
+    // Make overlay container non-intercepting so wheel events fall through
+    // to the editor when the pointer is not over the chat panel itself.
+    <div className={`${baseClass} ${overlayClasses} ${widthClass} pointer-events-none`}>
+      <div className="pointer-events-auto h-full">
+        <ChatPanel
+          sessionId={sessionId}
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+        />
+      </div>
     </div>
   );
 }

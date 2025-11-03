@@ -745,12 +745,20 @@ export default function CodeEditor({
       javascript(),
       indentUnit.of("  "),
     ];
+    // Ensure the editor occupies available height and give the scroller
+    // extra bottom padding so the last line is reachable with the mouse
+    // wheel/trackpad gestures.
+    const editorPaddingTheme = EditorView.theme({
+      '&': { height: '100%' },
+      '.cm-scroller': { paddingBottom: '3.5rem' },
+    });
     return [
       ...langExtensions,
       oneDark,
       indentOnInput(),
       keymap.of([indentWithTab]),
       EditorView.lineWrapping,
+      editorPaddingTheme,
       yCollab(ytextRef.current, awarenessRef.current, { undoManager: false }),
     ];
   }, [selectedLanguage]);
@@ -955,7 +963,7 @@ export default function CodeEditor({
         {/* Main editor */}
         <div className="flex flex-1 min-h-0 gap-4 p-4">
           <div className="flex-1 flex flex-col min-w-0">
-            <div className="flex-1 rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
+            <div className="flex-1 h-full rounded-lg overflow-hidden border border-slate-600/50 shadow-inner">
               <CodeMirror
                 // Let yCollab / Y.Text control the document. We must NOT set
                 // `defaultValue` here when using CRDT-backed yCollab because
@@ -966,6 +974,8 @@ export default function CodeEditor({
                 // key the editor by session so switching sessions forces a fresh mount
                 key={sessionId}
                 height="100%"
+                className="h-full"
+                style={{ height: "100%" }}
                 theme={oneDark}
                 extensions={extensions}
                 basicSetup={{

@@ -116,7 +116,10 @@ export default function ChatPanel({
   }
 
   return (
-    <div className="flex flex-col h-full bg-slate-800/60 backdrop-blur-sm border-l border-slate-600/40 rounded-r-md">
+    // Ensure the chat panel accepts pointer events even when its parent
+    // overlay is marked `pointer-events-none` so wheel events can pass
+    // through to the editor beneath.
+    <div className="pointer-events-auto flex flex-col h-full bg-slate-800/60 backdrop-blur-sm border-l border-slate-600/40 rounded-r-md">
       <div className="flex items-center justify-between px-3 py-2 border-b border-slate-600/30">
         <div className="text-sm font-semibold text-white">Chat</div>
         <div className="flex items-center gap-2">
