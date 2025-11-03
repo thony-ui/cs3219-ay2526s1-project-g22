@@ -66,7 +66,26 @@ export default function CodeEditor({
     language: string;
     timeoutId: number | null;
   } | null>(null);
-  const [proposalNotice, setProposalNotice] = useState<string | null>(null);
+  // simple toast system
+  const [toasts, setToasts] = useState<
+    { id: string; message: string; ttl?: number }[]
+  >([]);
+
+  const pushToast = useCallback((message: string, ttl = 5000) => {
+    const id = `t-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const toast = { id, message, ttl };
+    setToasts((t) => [...t, toast]);
+    if (ttl && ttl > 0) {
+      window.setTimeout(() => {
+        setToasts((t) => t.filter((x) => x.id !== id));
+      }, ttl);
+    }
+    return id;
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts((t) => t.filter((x) => x.id !== id));
+  }, []);
   const prevLanguageRef = useRef<string | null>(null);
   // track pending proposal in a ref so realtime callbacks see the up-to-date value
   const pendingProposalRef = useRef<{
@@ -198,10 +217,9 @@ export default function CodeEditor({
       if (raw) {
         const parsed = JSON.parse(raw || "{}");
         const lang = parsed?.language;
-        setProposalNotice(
+        pushToast(
           `Your pending language change to ${lang || "<unknown>"} was cancelled due to a refresh`
         );
-        window.setTimeout(() => setProposalNotice(null), 5000);
         sessionStorage.removeItem(storageKey);
       }
     } catch (err) {
@@ -218,10 +236,9 @@ export default function CodeEditor({
       if (raw) {
         const parsed = JSON.parse(raw || "{}");
         const lang = parsed?.language;
-        setProposalNotice(
+        pushToast(
           `You refreshed while a proposal was pending; the proposal for ${lang || "<unknown>"} was auto-rejected.`
         );
-        window.setTimeout(() => setProposalNotice(null), 5000);
         sessionStorage.removeItem(storageKey);
       }
     } catch (err) {
@@ -370,10 +387,7 @@ export default function CodeEditor({
             if (cur && cur.from === from) {
               incomingProposalRef.current = null;
               setIncomingProposal(null);
-              setProposalNotice(
-                `User ${from} cancelled language change to ${lang || "<unknown>"}`
-              );
-              window.setTimeout(() => setProposalNotice(null), 5000);
+              pushToast(`User ${from} cancelled language change to ${lang || "<unknown>"}`);
             }
           } catch (err) {
             // ignore
@@ -439,10 +453,7 @@ export default function CodeEditor({
                     prevLanguageRef.current = null;
                   }
                   // show rejection notice briefly
-                  setProposalNotice(
-                    `User ${from || "peer"} rejected the language change to ${lang}`
-                  );
-                  window.setTimeout(() => setProposalNotice(null), 5000);
+                  pushToast(`User ${from || "peer"} rejected the language change to ${lang}`);
                 // could show a toast here in future
               }
             }
@@ -890,12 +901,24 @@ export default function CodeEditor({
         </div>
       )}
 
-      {/* Transient notice for cancellations/rejections */}
-      {proposalNotice && (
-        <div className="fixed top-16 left-1/2 -translate-x-1/2 z-[9997]">
-          <div className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 px-4 py-2 rounded shadow">
-            {proposalNotice}
-          </div>
+      {/* Toast container */}
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-[9999] flex flex-col gap-2">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              className="bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-200 px-4 py-2 rounded shadow flex items-center justify-between max-w-sm"
+            >
+              <div className="mr-3 break-words">{t.message}</div>
+              <button
+                onClick={() => removeToast(t.id)}
+                className="ml-2 text-sm underline"
+                aria-label="Close toast"
+              >
+                Close
+              </button>
+            </div>
+          ))}
         </div>
       )}
 
