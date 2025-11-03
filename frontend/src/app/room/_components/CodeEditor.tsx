@@ -10,6 +10,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { indentOnInput, indentUnit } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { EditorView, keymap } from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import CodeMirror from "@uiw/react-codemirror";
 import { useRouter } from "next/navigation";
@@ -51,8 +52,10 @@ export default function CodeEditor({
   const { user } = useUser();
   const userId = user?.id;
 
+  // Start with no language selected. The editor will be non-editable
+  // until a language is chosen by a participant.
   const [selectedLanguage, setSelectedLanguage] =
-    useState<string>("JavaScript");
+    useState<string | undefined>(undefined);
   // proposal / confirmation UI state
   const [incomingProposal, setIncomingProposal] = useState<
     { from?: string; language: string } | null
@@ -86,7 +89,7 @@ export default function CodeEditor({
   const removeToast = useCallback((id: string) => {
     setToasts((t) => t.filter((x) => x.id !== id));
   }, []);
-  const prevLanguageRef = useRef<string | null>(null);
+  const prevLanguageRef = useRef<string | undefined | null>(null);
   // track pending proposal in a ref so realtime callbacks see the up-to-date value
   const pendingProposalRef = useRef<{
     language: string;
@@ -641,8 +644,11 @@ export default function CodeEditor({
                   "")
               : "";
 
-          // If session has code use it, otherwise use question snippet (if any)
-          const initial = sessionCode || questionSnippet || "";
+          // If session has code use it. Otherwise, only use the question
+          // snippet if the session already has an authoritative language
+          // selected. This avoids seeding code into the session when no
+          // language is chosen.
+          const initial = sessionCode || (sessionLang ? questionSnippet : "") || "";
 
           // Expose initial code to CodeMirror via defaultValue
           setInitialCode(initial || undefined);
@@ -651,8 +657,9 @@ export default function CodeEditor({
           await joinRealtimeChannel(initial);
 
           // If session had no persisted code but question provided a snippet,
-          // persist it so subsequent joins see it from the session row.
-          if (!sessionCode && questionSnippet) {
+          // persist it so subsequent joins see it from the session row. Only
+          // persist when an authoritative language exists for the session.
+          if (!sessionCode && questionSnippet && sessionLang) {
             // Best-effort persist; ignore errors
             persistSnapshot(baseApiUrl, sessionId, questionSnippet).catch(() =>
               void 0
@@ -745,14 +752,32 @@ export default function CodeEditor({
       javascript(),
       indentUnit.of("  "),
     ];
-    return [
+    // Add a small bottom padding so final line is reachable.
+    const editorPaddingTheme = EditorView.theme({
+      '&': { height: '100%' },
+      '.cm-scroller': { paddingBottom: '3.5rem' },
+    });
+
+    const base = [
       ...langExtensions,
       oneDark,
       indentOnInput(),
       keymap.of([indentWithTab]),
       EditorView.lineWrapping,
-      yCollab(ytextRef.current, awarenessRef.current, { undoManager: false }),
+      editorPaddingTheme,
     ];
+
+    // When no language is selected, make the editor non-editable and readOnly
+    // so users are encouraged to pick a language first. Programmatic updates
+    // are still allowed (we still can insert snippets into Y.Text).
+    if (!selectedLanguage) {
+      base.push(EditorView.editable.of(false));
+      base.push(EditorState.readOnly.of(true));
+    }
+
+    base.push(yCollab(ytextRef.current, awarenessRef.current, { undoManager: false }));
+
+    return base;
   }, [selectedLanguage]);
 
   // Persist language selection to backend so the session row's
@@ -936,7 +961,7 @@ export default function CodeEditor({
 
         {/* Language & Execute controls */}
         <CodeEditorLanguageSelectionAndRunButton
-          selectedLanguage={selectedLanguage}
+          selectedLanguage={selectedLanguage ?? ""}
           setSelectedLanguage={setSelectedLanguage}
           setCode={() => {}} // not used with Yjs
           availableLanguages={
@@ -951,6 +976,14 @@ export default function CodeEditor({
           languageMap={languageMap}
           onRequestLanguageChange={requestLanguageChange}
         />
+
+        {/* If no language is selected, prompt users to choose one and keep editor read-only */}
+        {!selectedLanguage && (
+          <div className="mx-4 my-2 p-3 rounded-md bg-yellow-50 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border border-yellow-200 dark:border-yellow-800">
+            <strong className="mr-2">Select a language to start editing</strong>
+            <span className="text-sm">Use the Language dropdown above to enable editing the code.</span>
+          </div>
+        )}
 
         {/* Main editor */}
         <div className="flex flex-1 min-h-0 gap-4 p-4">
