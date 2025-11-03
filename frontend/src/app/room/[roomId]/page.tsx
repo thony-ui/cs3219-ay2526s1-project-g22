@@ -175,7 +175,8 @@ export default function RoomPage({
 }
 
 function ChatWrapper({ sessionId }: { sessionId: string }) {
-  const [collapsed, setCollapsed] = useState(false);
+  // Start with chat collapsed/closed by default
+  const [collapsed, setCollapsed] = useState(true);
   // keep the chat hidden on small screens as before
   const baseClass = "hidden md:block ml-4";
   const widthClass = collapsed ? "w-12" : "w-80";
