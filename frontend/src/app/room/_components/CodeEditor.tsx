@@ -58,13 +58,13 @@ export default function CodeEditor({
     useState<string | undefined>(undefined);
   // proposal / confirmation UI state
   const [incomingProposal, setIncomingProposal] = useState<
-    { from?: string; language: string } | null
+    { from?: string; language: string; proposalId?: string } | null
   >(null);
   // keep a ref copy so realtime callbacks (which close over values) can
   // reliably inspect/clear the current incoming proposal
-  const incomingProposalRef = useRef<{ from?: string; language: string } | null>(
-    null
-  );
+  const incomingProposalRef = useRef<
+    { from?: string; language: string; proposalId?: string } | null
+  >(null);
   const [proposalPending, setProposalPending] = useState<{
     language: string;
     timeoutId: number | null;
@@ -91,9 +91,13 @@ export default function CodeEditor({
   }, []);
   const prevLanguageRef = useRef<string | undefined | null>(null);
   // track pending proposal in a ref so realtime callbacks see the up-to-date value
+  // includes proposalId to allow deterministic tie-breaking for simultaneous
+  // proposals
   const pendingProposalRef = useRef<{
     language: string;
     timeoutId: number | null;
+    proposalId: string;
+    ts: number;
   } | null>(null);
   // stable client id used in realtime messages when `userId` may be undefined
   const clientIdRef = useRef<string>(
@@ -167,7 +171,7 @@ export default function CodeEditor({
           channelRef.current.send({
             type: "broadcast",
             event: "language-cancel",
-            payload: { from: clientIdRef.current, language: pending.language },
+            payload: { from: clientIdRef.current, language: pending.language, proposalId: pending.proposalId },
           });
         } catch (err) {
           // ignore
@@ -191,6 +195,7 @@ export default function CodeEditor({
               from: clientIdRef.current,
               language: incoming.language,
               accept: false,
+              proposalId: incoming.proposalId,
             },
           });
         } catch (err) {
@@ -347,9 +352,78 @@ export default function CodeEditor({
             const pl = payload.payload ?? {};
             const lang = pl.language as string | undefined;
             const from = pl.from as string | undefined;
-            if (!lang || !from || from === clientIdRef.current) return;
+            const proposalId = pl.proposalId as string | undefined;
+            const ts = typeof pl.ts === "number" ? pl.ts : Date.now();
+            if (!lang || !from || from === clientIdRef.current || !proposalId) return;
+
+            // If we have an outgoing pending proposal, this is a simultaneous
+            // proposal situation. Resolve deterministically by comparing
+            // proposalId strings (lexical order); the smaller id wins. If we
+            // lose the tie, cancel our outgoing; if we win, auto-reject the
+            // incoming proposal so the UX remains deterministic.
+            const pending = pendingProposalRef.current;
+            if (pending) {
+              try {
+                const theirs = proposalId;
+                const ours = pending.proposalId;
+                if (theirs < ours) {
+                  // Their proposal wins. Cancel our pending proposal and
+                  // present the incoming one for user decision.
+                  try {
+                    channelRef.current?.send({
+                      type: "broadcast",
+                      event: "language-cancel",
+                      payload: {
+                        from: clientIdRef.current,
+                        language: pending.language,
+                        proposalId: pending.proposalId,
+                      },
+                    });
+                  } catch (err) {
+                    // ignore
+                  }
+                  if (pending.timeoutId) clearTimeout(pending.timeoutId);
+                  pendingProposalRef.current = null;
+                  setProposalPending(null);
+                  if (prevLanguageRef.current) {
+                    setSelectedLanguage(prevLanguageRef.current);
+                    prevLanguageRef.current = null;
+                  }
+                  // show incoming proposal to local user
+                  const incoming = { from, language: lang, proposalId };
+                  incomingProposalRef.current = incoming;
+                  setIncomingProposal(incoming);
+                  return;
+                } else {
+                  // Our proposal wins: auto-reject their proposal so they
+                  // will process the rejection deterministically.
+                  try {
+                    channelRef.current?.send({
+                      type: "broadcast",
+                      event: "language-response",
+                      payload: {
+                        to: from,
+                        from: clientIdRef.current,
+                        language: lang,
+                        accept: false,
+                        proposalId,
+                      },
+                    });
+                  } catch (err) {
+                    // ignore
+                  }
+                  // don't show incoming prompt (we've auto-rejected)
+                  return;
+                }
+              } catch (err) {
+                // if tie-break logic fails, fall back to showing incoming
+              }
+            }
+
             // show incoming proposal to local user
-            setIncomingProposal({ from, language: lang });
+            const incoming = { from, language: lang, proposalId };
+            incomingProposalRef.current = incoming;
+            setIncomingProposal(incoming);
           } catch (err) {
             // ignore
           }
@@ -384,13 +458,26 @@ export default function CodeEditor({
             const pl = payload.payload ?? {};
             const from = pl.from as string | undefined;
             const lang = pl.language as string | undefined;
+            const proposalId = pl.proposalId as string | undefined;
             if (!from || from === clientIdRef.current) return;
-            // if we have an incoming proposal from that originator, clear it
+            // if we have an incoming proposal from that originator matching
+            // the proposalId, clear it
             const cur = incomingProposalRef.current;
             if (cur && cur.from === from) {
               incomingProposalRef.current = null;
               setIncomingProposal(null);
               pushToast(`User ${from} cancelled language change to ${lang || "<unknown>"}`);
+            }
+            // If the cancel targets our outgoing pending proposal, clear it
+            const pending = pendingProposalRef.current;
+            if (pending && proposalId && pending.proposalId === proposalId) {
+              if (pending.timeoutId) clearTimeout(pending.timeoutId);
+              pendingProposalRef.current = null;
+              setProposalPending(null);
+              if (prevLanguageRef.current) {
+                setSelectedLanguage(prevLanguageRef.current);
+                prevLanguageRef.current = null;
+              }
             }
           } catch (err) {
             // ignore
@@ -409,11 +496,17 @@ export default function CodeEditor({
             const accept = pl.accept as boolean | undefined;
             const lang = pl.language as string | undefined;
             const from = pl.from as string | undefined;
+                const proposalId = pl.proposalId as string | undefined;
             // only handle responses addressed to this client
             if (!to || to !== clientIdRef.current) return;
             // if originator and waiting on proposal, process first response
             const pending = pendingProposalRef.current;
-            if (pending && lang && typeof accept === "boolean") {
+                if (pending && lang && typeof accept === "boolean") {
+                  // make sure this response matches the proposal we sent
+                  if (proposalId && pending.proposalId !== proposalId) {
+                    // ignore responses to other proposals
+                    return;
+                  }
               // clear pending timeout
               if (pending.timeoutId) {
                 clearTimeout(pending.timeoutId);
@@ -711,6 +804,7 @@ export default function CodeEditor({
             from: clientIdRef.current,
             language: incomingProposal.language,
             accept,
+            proposalId: incomingProposal.proposalId,
           },
         });
       } catch (err) {
@@ -763,6 +857,10 @@ export default function CodeEditor({
   // helper used by the language selection UI.
   const requestLanguageChange = useCallback(
     (language: string) => {
+      // generate proposal id/timestamp up-front so they are available
+      // for the timeout cleanup closure and ref storage
+      const proposalId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      const ts = Date.now();
       try {
         // Update UI state immediately
         // Instead of applying immediately, send a proposal to peers and wait
@@ -774,7 +872,7 @@ export default function CodeEditor({
           channelRef.current?.send({
             type: "broadcast",
             event: "language-proposal",
-            payload: { language, from: clientIdRef.current },
+            payload: { language, from: clientIdRef.current, proposalId, ts },
           });
         } catch (err) {
           // ignore
@@ -794,9 +892,10 @@ export default function CodeEditor({
             prevLanguageRef.current = null;
           }
         }, 10000) as unknown as number;
-        const pending = { language, timeoutId };
+        const pending = { language, timeoutId, proposalId, ts };
         pendingProposalRef.current = pending;
-        setProposalPending(pending);
+        // UI state keeps same shape as before (language + timeoutId)
+        setProposalPending({ language, timeoutId });
       } catch (err) {
         // ignore
       }
@@ -884,10 +983,11 @@ export default function CodeEditor({
                   // send cancel notification to peers so they can clear their prompt
                   try {
                     const lang = proposalPending?.language;
+                    const pid = pendingProposalRef.current?.proposalId;
                     channelRef.current?.send({
                       type: "broadcast",
                       event: "language-cancel",
-                      payload: { from: clientIdRef.current, language: lang },
+                      payload: { from: clientIdRef.current, language: lang, proposalId: pid },
                     });
                   } catch (err) {
                     // ignore
