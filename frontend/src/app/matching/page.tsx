@@ -539,18 +539,7 @@ export default function MatchingPage() {
                       </Button>
                     ) : (
                       <>
-                        <Button
-                          size="lg"
-                          className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
-                          onClick={handleToggleMatching}
-                          disabled={isSubmitting}
-                        >
-                          <Shuffle className="mr-2 h-5 w-5" />
-                          Start Matching
-                        </Button>
-
-                        {/* conditionally render if active session exists */}
-                        {activeSession && (
+                        {activeSession ? (
                           <Button
                             size="lg"
                             className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-6 text-lg"
@@ -565,6 +554,16 @@ export default function MatchingPage() {
                             ) : (
                               "Rejoin Session"
                             )}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="lg"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
+                            onClick={handleToggleMatching}
+                            disabled={isSubmitting}
+                          >
+                            <Shuffle className="mr-2 h-5 w-5" />
+                            Start Matching
                           </Button>
                         )}
                       </>
