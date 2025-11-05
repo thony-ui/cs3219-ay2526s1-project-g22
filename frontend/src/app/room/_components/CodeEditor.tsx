@@ -989,15 +989,15 @@ export default function CodeEditor({
           aria-label="Language change proposed"
         >
           <div className="absolute inset-0 bg-black/30" />
-          <div className="relative bg-slate-900/95 text-white rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl border border-slate-700/40 z-50">
-            <h3 className="text-lg font-semibold mb-2 text-white">
+          <div className="relative bg-white text-black rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl border border-slate-200 z-50">
+            <h3 className="text-lg font-semibold mb-2 text-black">
               Language change proposed
             </h3>
-            <p className="text-sm text-slate-300 mb-4">
+            <p className="text-sm text-slate-700 mb-4">
               User{" "}
-              <strong className="text-white">{incomingProposal.from}</strong>{" "}
+              <strong className="font-semibold text-black">{incomingProposal.from}</strong>{" "}
               proposes to change the editor language to{" "}
-              <strong className="text-white">
+              <strong className="font-semibold text-black">
                 {incomingProposal.language}
               </strong>
               .
@@ -1005,7 +1005,7 @@ export default function CodeEditor({
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => respondToProposal(false)}
-                className="px-3 py-1 rounded bg-slate-700/60 text-slate-100 hover:bg-slate-700/80"
+                className="px-3 py-1 rounded bg-slate-100 text-slate-800 hover:bg-slate-200"
               >
                 Reject
               </button>
