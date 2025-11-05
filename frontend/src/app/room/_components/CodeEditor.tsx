@@ -107,9 +107,11 @@ export default function CodeEditor({
     ts: number;
   } | null>(null);
   // stable client id used in realtime messages when `userId` may be undefined
-  const clientIdRef = useRef<string>(
-    userId || `local-${Math.random().toString(36).slice(2, 9)}`
-  );
+  // We'll prefer the authenticated user id when available. When not, we will
+  // attempt to use the Supabase realtime connection/client id (set after
+  // subscribing). Only fall back to a local random id if no supabase id is
+  // discoverable.
+  const clientIdRef = useRef<string>(userId || "");
   const [submissionHistory, setSubmissionHistory] = useState<
     SubmissionResult[]
   >([]);
@@ -644,8 +646,32 @@ export default function CodeEditor({
       // subscribe
       const sub = await channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
+          // Track presence using configured userId (may be undefined)
           await channel.track({ userId });
-          console.info("Subscribed to room", sessionId);
+
+          // Try to derive a stable client id from the supabase/channel
+          // runtime. Different runtime versions expose different props so
+          // attempt a few fallbacks before creating a local id.
+          try {
+            const ch: any = channel;
+            const supabaseAny: any = supabase;
+            const derived =
+              userId ||
+              ch?.subscription?.id ||
+              ch?.id ||
+              ch?.socket?.id ||
+              supabaseAny?.realtime?.connection?.id ||
+              supabaseAny?.realtime?.client?.connection?.id;
+            clientIdRef.current =
+              (typeof derived === "string" && derived) ||
+              `local-${Math.random().toString(36).slice(2, 9)}`;
+          } catch (err) {
+            clientIdRef.current = `local-${Math.random()
+              .toString(36)
+              .slice(2, 9)}`;
+          }
+
+          console.info("Subscribed to room", sessionId, "clientId:", clientIdRef.current);
 
           // Always request the latest document from peers
           channel.send({
