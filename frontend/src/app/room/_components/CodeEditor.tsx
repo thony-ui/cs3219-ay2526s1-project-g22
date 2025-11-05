@@ -9,8 +9,9 @@ import { indentWithTab } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
 import { indentOnInput, indentUnit } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { EditorView, keymap } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
+import { EditorView, keymap, Decoration, WidgetType } from "@codemirror/view";
+import { EditorState, StateEffect, StateField } from "@codemirror/state";
+import { DecorationSet } from "@codemirror/view";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import CodeMirror from "@uiw/react-codemirror";
 import { useRouter } from "next/navigation";
@@ -22,7 +23,6 @@ import CodeEditorSubmissionResults from "./CodeEditorSubmissionResults";
 
 // --- YJS imports ---
 import { yCollab } from "y-codemirror.next";
-// awareness/cursor protocol removed (see edits below)
 import * as Y from "yjs";
 
 interface SubmissionResult {
@@ -116,6 +116,110 @@ export default function CodeEditor({
 
   const supabase = useMemo(() => createClient(), []);
   const channelRef = useRef<RealtimeChannel | null>(null);
+  const editorViewRef = useRef<EditorView | null>(null);
+
+  // Remote cursors map: clientId -> { anchor, head, userName?, color, ts }
+  const remoteCursorsRef = useRef<Record<string, any>>({});
+
+  const pickColor = (id: string) => {
+    const colors = [
+      "#ef4444",
+      "#f97316",
+      "#f59e0b",
+      "#84cc16",
+      "#10b981",
+      "#06b6d4",
+      "#3b82f6",
+      "#8b5cf6",
+      "#ec4899",
+    ];
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h << 5) - h + id.charCodeAt(i);
+    return colors[Math.abs(h) % colors.length];
+  };
+
+  // StateEffect & StateField used to update editor decorations for remote cursors
+  const setRemoteCursorsEffect = useMemo(() => StateEffect.define<Record<string, any>>(), []);
+  const remoteCursorsField = useMemo(() =>
+    StateField.define<DecorationSet>({
+      create() {
+        return Decoration.none;
+      },
+      update(decos, tr) {
+        for (const e of tr.effects) {
+          if (e.is(setRemoteCursorsEffect)) {
+            const cursors = e.value ?? {};
+            // build decorations from cursors and current doc
+            const builder: any[] = [];
+            const doc = tr.state.doc;
+            Object.keys(cursors).forEach((cid) => {
+              const c = cursors[cid];
+              if (!c || typeof c.head !== "number") return;
+              const head = Math.max(0, Math.min(doc.length, c.head));
+              const anchor = Math.max(0, Math.min(doc.length, c.anchor ?? c.head));
+              // selection
+              if (anchor !== head) {
+                const from = Math.min(anchor, head);
+                const to = Math.max(anchor, head);
+                builder.push(Decoration.mark({
+                  attributes: { style: `background: ${c.color}33;` },
+                }).range(from, to));
+              }
+              // caret widget
+              class CursorWidget extends WidgetType {
+                color: string;
+                label: string;
+                constructor(color: string, label: string) {
+                  super();
+                  this.color = color;
+                  this.label = label;
+                }
+                toDOM() {
+                  const el = document.createElement("span");
+                  el.className = "cm-remote-caret";
+                  // Make caret thicker and a bit taller so it's more visible
+                  el.style.borderLeft = `2px solid ${this.color}`;
+                  // adjust margin to account for thicker border
+                  el.style.marginLeft = "-2px";
+                  el.style.height = "1.05em";
+                  el.style.display = "inline-block";
+                  el.style.verticalAlign = "text-bottom";
+                  // subtle glow to help visibility on dark backgrounds
+                  el.style.boxShadow = `0 0 4px ${this.color}66`;
+                  // label
+                  const label = document.createElement("div");
+                  label.textContent = this.label || cid;
+                  label.style.position = "absolute";
+                  label.style.background = this.color;
+                  label.style.color = "white";
+                  label.style.fontSize = "11px";
+                  label.style.padding = "2px 6px";
+                  label.style.borderRadius = "4px";
+                  label.style.transform = "translateY(-1.6em)";
+                  label.style.whiteSpace = "nowrap";
+                  const wrapper = document.createElement("span");
+                  wrapper.style.position = "relative";
+                  wrapper.appendChild(el);
+                  wrapper.appendChild(label);
+                  return wrapper;
+                }
+                ignoreEvent() { return true; }
+              }
+              const caret = Decoration.widget({ widget: new CursorWidget(c.color, c.userName || cid), side: 1 }).range(head);
+              builder.push(caret);
+            });
+            // convert array to Decoration.set
+            const set = Decoration.set(builder as any, true);
+            decos = set;
+          }
+        }
+        // map decorations through document changes
+        decos = decos.map(tr.changes);
+        return decos;
+      },
+      provide: f => EditorView.decorations.from(f),
+    }), [setRemoteCursorsEffect]
+  );
   const snapshotIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
   );
@@ -354,6 +458,43 @@ export default function CodeEditor({
       });
 
       // awareness/cursor broadcasts removed
+
+      // incoming cursor updates from peers
+      channel.on(
+        "broadcast",
+        { event: "cursor-update" },
+        (payload: { payload?: Record<string, unknown> }) => {
+          try {
+            const raw = payload.payload ?? {};
+            const pl = (raw.payload as Record<string, unknown> | undefined) ?? raw;
+            const cid = (pl.clientId as string) || (pl.from as string) || undefined;
+            const sel = (pl.selection as { anchor: number; head: number } | undefined) || pl;
+            const userMeta = (pl.user as any) || {};
+            if (!cid || cid === clientIdRef.current) return;
+            const map = {
+              ...(remoteCursorsRef.current || {}),
+              [cid]: {
+                anchor: typeof sel.anchor === "number" ? sel.anchor : 0,
+                head: typeof sel.head === "number" ? sel.head : 0,
+                userName: userMeta.name || cid,
+                color: pickColor(cid),
+                ts: typeof pl.ts === "number" ? pl.ts : Date.now(),
+              },
+            };
+            remoteCursorsRef.current = map;
+            // update decorations in the editor if available
+            try {
+              editorViewRef.current?.dispatch({
+                effects: setRemoteCursorsEffect.of(map),
+              });
+            } catch (err) {
+              // ignore
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      );
 
       // incoming language proposal from another client
       channel.on(
@@ -879,8 +1020,50 @@ export default function CodeEditor({
     }
 
     base.push(
-      // awareness/cursor support removed: pass undefined for awareness
+      // y-collab (CRDT) integration
       yCollab(ytextRef.current, undefined as any, { undoManager: false })
+    );
+
+    // Add remote cursor decorations/state
+    base.push(remoteCursorsField);
+
+    // Update listener: publish selection (cursor) updates to peers
+    base.push(
+      EditorView.updateListener.of((update) => {
+        try {
+          if (!update.view) return;
+          // on selection change, broadcast cursor pos
+          if (update.selectionSet) {
+            const sel = update.state.selection.main;
+            const payload = {
+              anchor: sel.anchor,
+              head: sel.head,
+              ts: Date.now(),
+            };
+            const cid = clientIdRef.current || `local-${Math.random().toString(36).slice(2,9)}`;
+            const userLabel = (user && (user.name || (user.email as string) || user.id)) || cid;
+            // update local cache
+            const map = {
+              ...(remoteCursorsRef.current || {}),
+              [cid]: { ...payload, userName: userLabel, color: pickColor(cid), ts: Date.now() },
+            };
+            remoteCursorsRef.current = map;
+            update.view.dispatch({ effects: setRemoteCursorsEffect.of(map) });
+            // broadcast to peers
+            try {
+              channelRef.current?.send({
+                type: "broadcast",
+                event: "cursor-update",
+                payload: { clientId: cid, selection: payload, user: { name: userLabel }, ts: Date.now() },
+              });
+            } catch (err) {
+              // ignore
+            }
+          }
+        } catch (err) {
+          // ignore
+        }
+      })
     );
 
     return base;
@@ -1169,6 +1352,15 @@ export default function CodeEditor({
                     bracketMatching: true,
                     closeBrackets: true,
                     autocompletion: true,
+                  }}
+                  onCreateEditor={(view) => {
+                    try {
+                      editorViewRef.current = view;
+                      // ensure decorations reflect any cached remote cursors
+                      view.dispatch({ effects: setRemoteCursorsEffect.of(remoteCursorsRef.current) });
+                    } catch (err) {
+                      // ignore
+                    }
                   }}
                 />
               </div>
