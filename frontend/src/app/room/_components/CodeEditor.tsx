@@ -1108,22 +1108,11 @@ export default function CodeEditor({
   tip.style.gap = "0px";
       tip.style.boxShadow = `0 6px 18px ${color || "#000000"}66`;
 
-      // small colored dot inside tooltip
-      const dot = document.createElement("span");
-  dot.style.width = "10px";
-  dot.style.height = "10px";
-  dot.style.borderRadius = "50%";
-  dot.style.background = color || "#111827";
-  dot.style.boxShadow = `0 0 6px ${color || "#000000"}66`;
-  dot.style.flex = "0 0 auto";
-  dot.style.margin = "0 0 0 -10px";
-
       const label = document.createElement("span");
       label.textContent = text;
       label.style.whiteSpace = "nowrap";
       label.style.fontWeight = "600";
 
-      tip.appendChild(dot);
       tip.appendChild(label);
 
       document.body.appendChild(tip);
