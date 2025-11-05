@@ -9,8 +9,8 @@ import { indentWithTab } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
 import { indentOnInput, indentUnit } from "@codemirror/language";
 import { oneDark } from "@codemirror/theme-one-dark";
-import { EditorView, keymap, Decoration, WidgetType } from "@codemirror/view";
-import { EditorState, StateEffect, StateField } from "@codemirror/state";
+import { EditorView, keymap, Decoration, WidgetType, GutterMarker, gutter } from "@codemirror/view";
+import { EditorState, StateEffect, StateField, RangeSet } from "@codemirror/state";
 import { DecorationSet } from "@codemirror/view";
 import { RealtimeChannel } from "@supabase/supabase-js";
 import CodeMirror from "@uiw/react-codemirror";
@@ -168,44 +168,37 @@ export default function CodeEditor({
               // caret widget
               class CursorWidget extends WidgetType {
                 color: string;
-                label: string;
-                constructor(color: string, label: string) {
+                baseLabel: string;
+                isSelf: boolean;
+                constructor(color: string, label: string, isSelf = false) {
                   super();
                   this.color = color;
-                  this.label = label;
+                  this.baseLabel = label;
+                  this.isSelf = isSelf;
                 }
                 toDOM() {
                   const el = document.createElement("span");
                   el.className = "cm-remote-caret";
-                  // Make caret thicker and a bit taller so it's more visible
+                  // Make caret slightly thicker and a bit taller so it's visible
                   el.style.borderLeft = `2px solid ${this.color}`;
-                  // adjust margin to account for thicker border
                   el.style.marginLeft = "-2px";
                   el.style.height = "1.05em";
                   el.style.display = "inline-block";
                   el.style.verticalAlign = "text-bottom";
                   // subtle glow to help visibility on dark backgrounds
                   el.style.boxShadow = `0 0 4px ${this.color}66`;
-                  // label
-                  const label = document.createElement("div");
-                  label.textContent = this.label || cid;
-                  label.style.position = "absolute";
-                  label.style.background = this.color;
-                  label.style.color = "white";
-                  label.style.fontSize = "11px";
-                  label.style.padding = "2px 6px";
-                  label.style.borderRadius = "4px";
-                  label.style.transform = "translateY(-1.6em)";
-                  label.style.whiteSpace = "nowrap";
-                  const wrapper = document.createElement("span");
-                  wrapper.style.position = "relative";
-                  wrapper.appendChild(el);
-                  wrapper.appendChild(label);
-                  return wrapper;
+                  // Use title attribute so hovering the caret shows the user name
+                  const label = this.baseLabel || "";
+                  el.title = label + (this.isSelf ? " (You)" : "");
+                  // Ensure the caret element receives pointer events so the
+                  // browser tooltip (title) appears on hover.
+                  el.style.pointerEvents = "auto";
+                  return el;
                 }
-                ignoreEvent() { return true; }
+                // Allow DOM events on the widget so hover/title works in all browsers
+                ignoreEvent() { return false; }
               }
-              const caret = Decoration.widget({ widget: new CursorWidget(c.color, c.userName || cid), side: 1 }).range(head);
+              const caret = Decoration.widget({ widget: new CursorWidget(c.color, c.userName || cid, cid === clientIdRef.current), side: 1 }).range(head);
               builder.push(caret);
             });
             // convert array to Decoration.set
@@ -219,6 +212,67 @@ export default function CodeEditor({
       },
       provide: f => EditorView.decorations.from(f),
     }), [setRemoteCursorsEffect]
+  );
+  // Gutter markers: show a small colored dot next to the line number for remote cursors
+  const setRemoteGutterEffect = useMemo(() => StateEffect.define<Record<string, any>>(), []);
+  const remoteGutterField = useMemo(() =>
+    StateField.define<RangeSet<GutterMarker>>({
+      create() {
+        // empty RangeSet
+        return RangeSet.empty as unknown as RangeSet<GutterMarker>;
+      },
+      update(markers, tr) {
+        // map markers through document changes
+        markers = markers.map(tr.changes);
+        for (const e of tr.effects) {
+          if (e.is(setRemoteGutterEffect)) {
+            const cursors = e.value ?? {};
+            const doc = tr.state.doc;
+            const byLine: any[] = [];
+            Object.keys(cursors).forEach((cid) => {
+              const c = cursors[cid];
+              if (!c || typeof c.head !== "number") return;
+              const head = Math.max(0, Math.min(doc.length, c.head));
+              const line = tr.state.doc.lineAt(head);
+              class RemoteGutterMarker extends GutterMarker {
+                color: string;
+                baseLabel: string;
+                isSelf: boolean;
+                constructor(color: string, label: string, isSelf = false) {
+                  super();
+                  this.color = color;
+                  this.baseLabel = label;
+                  this.isSelf = isSelf;
+                  this.elementClass = "cm-remote-gutter-marker";
+                }
+                toDOM(view?: EditorView) {
+                  const el = document.createElement("div");
+                  el.className = "cm-remote-gutter-dot";
+                  const label = this.baseLabel || "";
+                  const displayLabel = label + (this.isSelf ? " (You)" : "");
+                  el.title = displayLabel;
+                  // expose username and color as data attributes for tooltip handlers
+                  el.dataset.username = displayLabel;
+                  el.dataset.color = this.color;
+                  el.style.width = "10px";
+                  el.style.height = "10px";
+                  el.style.borderRadius = "50%";
+                  el.style.background = this.color;
+                  // remove horizontal margin so tooltip sits flush next to the gutter dot
+                  el.style.margin = "4px 0";
+                  el.style.boxShadow = `0 0 6px ${this.color}66`;
+                  return el;
+                }
+              }
+              const marker = new RemoteGutterMarker(c.color, c.userName || cid, cid === clientIdRef.current);
+              byLine.push(marker.range(line.from));
+            });
+            markers = RangeSet.of(byLine as any, true) as unknown as RangeSet<GutterMarker>;
+          }
+        }
+        return markers;
+      },
+    }), [setRemoteGutterEffect]
   );
   const snapshotIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
     null
@@ -482,10 +536,13 @@ export default function CodeEditor({
               },
             };
             remoteCursorsRef.current = map;
-            // update decorations in the editor if available
+            // update decorations and gutter markers in the editor if available
             try {
               editorViewRef.current?.dispatch({
-                effects: setRemoteCursorsEffect.of(map),
+                effects: [
+                  setRemoteCursorsEffect.of(map),
+                  setRemoteGutterEffect.of(map),
+                ],
               });
             } catch (err) {
               // ignore
@@ -1026,6 +1083,122 @@ export default function CodeEditor({
 
     // Add remote cursor decorations/state
     base.push(remoteCursorsField);
+    // Gutter markers for remote cursors (colored dot next to line numbers)
+    base.push(remoteGutterField);
+    // helper to show a small styled tooltip when hovering over gutter dots
+    const showGutterTooltip = (el: HTMLElement | null, text: string | undefined, color?: string) => {
+      if (!el || !text) return;
+      // remove existing
+      const existing = document.getElementById("cm-gutter-tooltip");
+      if (existing) existing.remove();
+      const tip = document.createElement("div");
+      tip.id = "cm-gutter-tooltip";
+      tip.className = "cm-gutter-tooltip";
+      tip.style.position = "fixed";
+      tip.style.zIndex = "99999";
+      tip.style.background = color || "#111827";
+      tip.style.color = "white";
+  // reduce left padding so text sits closer to the left edge
+  tip.style.padding = "6px";
+      tip.style.borderRadius = "12px";
+      tip.style.fontSize = "12px";
+      tip.style.pointerEvents = "none";
+      tip.style.display = "flex";
+      tip.style.alignItems = "center";
+  tip.style.gap = "0px";
+      tip.style.boxShadow = `0 6px 18px ${color || "#000000"}66`;
+
+      // small colored dot inside tooltip
+      const dot = document.createElement("span");
+  dot.style.width = "10px";
+  dot.style.height = "10px";
+  dot.style.borderRadius = "50%";
+  dot.style.background = color || "#111827";
+  dot.style.boxShadow = `0 0 6px ${color || "#000000"}66`;
+  dot.style.flex = "0 0 auto";
+  dot.style.margin = "0 0 0 -10px";
+
+      const label = document.createElement("span");
+      label.textContent = text;
+      label.style.whiteSpace = "nowrap";
+      label.style.fontWeight = "600";
+
+      tip.appendChild(dot);
+      tip.appendChild(label);
+
+      document.body.appendChild(tip);
+      const r = el.getBoundingClientRect();
+  // position to the right of the gutter marker, then clamp
+  const tipRect = tip.getBoundingClientRect();
+  // use a smaller offset so the tooltip sits closer to the gutter dot
+  let left = r.right + 2;
+      if (left + tipRect.width + 8 > window.innerWidth) left = window.innerWidth - tipRect.width - 8;
+      if (left < 8) left = 8;
+      tip.style.left = `${left}px`;
+      const top = Math.max(8, r.top + (r.height - tipRect.height) / 2);
+      tip.style.top = `${top}px`;
+    };
+    const removeGutterTooltip = () => {
+      const existing = document.getElementById("cm-gutter-tooltip");
+      if (existing) existing.remove();
+    };
+
+    // spacer marker so the remote gutter is always rendered (open) even when empty
+    const gutterSpacer = new (class extends GutterMarker {
+      toDOM() {
+        const el = document.createElement("div");
+        el.style.width = "12px";
+        el.style.height = "1px";
+        el.style.visibility = "hidden";
+        return el;
+      }
+    })();
+
+    base.push(
+      gutter({
+        initialSpacer: () => gutterSpacer,
+        class: "cm-gutter-remote",
+        markers: (view) => view.state.field(remoteGutterField),
+        widgetMarker: (view, marker) => marker as any,
+        side: "before",
+        domEventHandlers: {
+          mouseover(view, line, event) {
+            try {
+              const target = (event?.target || null) as HTMLElement | null;
+              // If the event target is inside the gutter marker element, find the dot
+              const el = target?.closest?.('.cm-remote-gutter-dot') as HTMLElement | null;
+              if (!el) return false;
+              const title = el.getAttribute('title') || el.dataset?.username;
+              const color = el.dataset?.color;
+              showGutterTooltip(el, title || undefined, color);
+            } catch (err) {
+              // ignore
+            }
+            return true;
+          },
+          mouseout(view, line, event) {
+            try {
+              // remove tooltip when leaving the gutter marker
+              removeGutterTooltip();
+            } catch (err) {
+              // ignore
+            }
+            return true;
+          }
+        }
+      })
+    );
+    base.push(
+      EditorView.baseTheme({
+        ".cm-gutter-remote .cm-gutterElement": {
+          paddingLeft: "0",
+          paddingRight: "0",
+        },
+        ".cm-gutter-tooltip": {
+          // will be created/positioned in JS; theme here for safety
+        }
+      })
+    );
 
     // Update listener: publish selection (cursor) updates to peers
     base.push(
@@ -1048,7 +1221,7 @@ export default function CodeEditor({
               [cid]: { ...payload, userName: userLabel, color: pickColor(cid), ts: Date.now() },
             };
             remoteCursorsRef.current = map;
-            update.view.dispatch({ effects: setRemoteCursorsEffect.of(map) });
+            update.view.dispatch({ effects: [setRemoteCursorsEffect.of(map), setRemoteGutterEffect.of(map)] });
             // broadcast to peers
             try {
               channelRef.current?.send({
@@ -1357,7 +1530,7 @@ export default function CodeEditor({
                     try {
                       editorViewRef.current = view;
                       // ensure decorations reflect any cached remote cursors
-                      view.dispatch({ effects: setRemoteCursorsEffect.of(remoteCursorsRef.current) });
+                      view.dispatch({ effects: [setRemoteCursorsEffect.of(remoteCursorsRef.current), setRemoteGutterEffect.of(remoteCursorsRef.current)] });
                     } catch (err) {
                       // ignore
                     }
