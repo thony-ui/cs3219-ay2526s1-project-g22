@@ -43,10 +43,8 @@ export async function POST(req: NextRequest) {
       data?.run?.stdout || data?.run?.stderr || data?.run?.output
     ).trim();
     return NextResponse.json({ ok: true, raw: data, output });
-  } catch (e: any) {
-    return NextResponse.json(
-      { ok: false, error: String(e?.message || e) },
-      { status: 500 }
-    );
+  } catch (e: unknown) {
+    const message = e instanceof Error ? e.message : String(e);
+    return NextResponse.json({ ok: false, error: message }, { status: 500 });
   }
 }

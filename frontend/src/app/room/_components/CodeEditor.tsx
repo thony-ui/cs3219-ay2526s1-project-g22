@@ -42,6 +42,8 @@ type Props = {
   showHeader?: boolean;
 };
 
+type BroadcastPayload = { payload?: Record<string, unknown> };
+
 export default function CodeEditor({
   sessionId,
   question,
@@ -54,17 +56,22 @@ export default function CodeEditor({
 
   // Start with no language selected. The editor will be non-editable
   // until a language is chosen by a participant.
-  const [selectedLanguage, setSelectedLanguage] =
-    useState<string | undefined>(undefined);
+  const [selectedLanguage, setSelectedLanguage] = useState<string | undefined>(
+    undefined
+  );
   // proposal / confirmation UI state
-  const [incomingProposal, setIncomingProposal] = useState<
-    { from?: string; language: string; proposalId?: string } | null
-  >(null);
+  const [incomingProposal, setIncomingProposal] = useState<{
+    from?: string;
+    language: string;
+    proposalId?: string;
+  } | null>(null);
   // keep a ref copy so realtime callbacks (which close over values) can
   // reliably inspect/clear the current incoming proposal
-  const incomingProposalRef = useRef<
-    { from?: string; language: string; proposalId?: string } | null
-  >(null);
+  const incomingProposalRef = useRef<{
+    from?: string;
+    language: string;
+    proposalId?: string;
+  } | null>(null);
   const [proposalPending, setProposalPending] = useState<{
     language: string;
     timeoutId: number | null;
@@ -107,9 +114,7 @@ export default function CodeEditor({
     SubmissionResult[]
   >([]);
   // initial code to show in the editor (from session or question snippet)
-  const [initialCode, setInitialCode] = useState<string | undefined>(
-    undefined
-  );
+  const [initialCode, setInitialCode] = useState<string | undefined>(undefined);
 
   const supabase = useMemo(() => createClient(), []);
   const channelRef = useRef<RealtimeChannel | null>(null);
@@ -123,14 +128,20 @@ export default function CodeEditor({
       const apiLang = cfg?.apiLang || displayLanguage;
       const snippets = question?.codeSnippets;
       if (!snippets || snippets.length === 0) return null;
-      const found = snippets.find((s: any) =>
-        [s.lang, s.language, s.type].some(
-          (v) => !!v && String(v).toLowerCase() === String(apiLang).toLowerCase()
-        )
+      const found = snippets.find(
+        (s: { lang?: string; language?: string; type?: string }) =>
+          [s.lang, s.language, s.type].some(
+            (v) =>
+              !!v && String(v).toLowerCase() === String(apiLang).toLowerCase()
+          )
       );
+
       if (!found) return null;
       return (
-        (found.code as string) || (found.content as string) || (found.snippet as string) || ""
+        (found.code as string) ||
+        (found.content as string) ||
+        (found.snippet as string) ||
+        ""
       );
     } catch (err) {
       return null;
@@ -171,13 +182,20 @@ export default function CodeEditor({
           channelRef.current.send({
             type: "broadcast",
             event: "language-cancel",
-            payload: { from: clientIdRef.current, language: pending.language, proposalId: pending.proposalId },
+            payload: {
+              from: clientIdRef.current,
+              language: pending.language,
+              proposalId: pending.proposalId,
+            },
           });
         } catch (err) {
           // ignore
         }
         try {
-          sessionStorage.setItem(storageKey, JSON.stringify({ language: pending.language, ts: Date.now() }));
+          sessionStorage.setItem(
+            storageKey,
+            JSON.stringify({ language: pending.language, ts: Date.now() })
+          );
         } catch (err) {
           // ignore
         }
@@ -204,7 +222,11 @@ export default function CodeEditor({
         try {
           sessionStorage.setItem(
             `pp-rejected-${sessionId}`,
-            JSON.stringify({ language: incoming.language, from: incoming.from, ts: Date.now() })
+            JSON.stringify({
+              language: incoming.language,
+              from: incoming.from,
+              ts: Date.now(),
+            })
           );
         } catch (err) {
           // ignore
@@ -226,7 +248,9 @@ export default function CodeEditor({
         const parsed = JSON.parse(raw || "{}");
         const lang = parsed?.language;
         pushToast(
-          `Your pending language change to ${lang || "<unknown>"} was cancelled due to a refresh`
+          `Your pending language change to ${
+            lang || "<unknown>"
+          } was cancelled due to a refresh`
         );
         sessionStorage.removeItem(storageKey);
       }
@@ -245,7 +269,9 @@ export default function CodeEditor({
         const parsed = JSON.parse(raw || "{}");
         const lang = parsed?.language;
         pushToast(
-          `You refreshed while a proposal was pending; the proposal for ${lang || "<unknown>"} was auto-rejected.`
+          `You refreshed while a proposal was pending; the proposal for ${
+            lang || "<unknown>"
+          } was auto-rejected.`
         );
         sessionStorage.removeItem(storageKey);
       }
@@ -323,8 +349,6 @@ export default function CodeEditor({
         config: { presence: { key: userId } },
       });
 
-      
-
       // apply yjs updates
       channel.on("broadcast", { event: "yjs-update" }, (payload) => {
         // mark that we received remote state and cancel any fallback insert
@@ -347,14 +371,15 @@ export default function CodeEditor({
       channel.on(
         "broadcast",
         { event: "language-proposal" },
-        (payload: { payload?: any }) => {
+        (payload: BroadcastPayload) => {
           try {
             const pl = payload.payload ?? {};
             const lang = pl.language as string | undefined;
             const from = pl.from as string | undefined;
             const proposalId = pl.proposalId as string | undefined;
             const ts = typeof pl.ts === "number" ? pl.ts : Date.now();
-            if (!lang || !from || from === clientIdRef.current || !proposalId) return;
+            if (!lang || !from || from === clientIdRef.current || !proposalId)
+              return;
 
             // If we have an outgoing pending proposal, this is a simultaneous
             // proposal situation. Resolve deterministically by comparing
@@ -434,7 +459,7 @@ export default function CodeEditor({
       channel.on(
         "broadcast",
         { event: "language-change" },
-        (payload: { payload?: any }) => {
+        (payload: BroadcastPayload) => {
           try {
             const pl = payload.payload ?? {};
             const lang = pl.language as string | undefined;
@@ -453,7 +478,7 @@ export default function CodeEditor({
       channel.on(
         "broadcast",
         { event: "language-cancel" },
-        (payload: { payload?: any }) => {
+        (payload: BroadcastPayload) => {
           try {
             const pl = payload.payload ?? {};
             const from = pl.from as string | undefined;
@@ -466,7 +491,11 @@ export default function CodeEditor({
             if (cur && cur.from === from) {
               incomingProposalRef.current = null;
               setIncomingProposal(null);
-              pushToast(`User ${from} cancelled language change to ${lang || "<unknown>"}`);
+              pushToast(
+                `User ${from} cancelled language change to ${
+                  lang || "<unknown>"
+                }`
+              );
             }
             // If the cancel targets our outgoing pending proposal, clear it
             const pending = pendingProposalRef.current;
@@ -489,24 +518,24 @@ export default function CodeEditor({
       channel.on(
         "broadcast",
         { event: "language-response" },
-        (payload: { payload?: any }) => {
+        (payload: BroadcastPayload) => {
           try {
             const pl = payload.payload ?? {};
             const to = pl.to as string | undefined;
             const accept = pl.accept as boolean | undefined;
             const lang = pl.language as string | undefined;
             const from = pl.from as string | undefined;
-                const proposalId = pl.proposalId as string | undefined;
+            const proposalId = pl.proposalId as string | undefined;
             // only handle responses addressed to this client
             if (!to || to !== clientIdRef.current) return;
             // if originator and waiting on proposal, process first response
             const pending = pendingProposalRef.current;
-                if (pending && lang && typeof accept === "boolean") {
-                  // make sure this response matches the proposal we sent
-                  if (proposalId && pending.proposalId !== proposalId) {
-                    // ignore responses to other proposals
-                    return;
-                  }
+            if (pending && lang && typeof accept === "boolean") {
+              // make sure this response matches the proposal we sent
+              if (proposalId && pending.proposalId !== proposalId) {
+                // ignore responses to other proposals
+                return;
+              }
               // clear pending timeout
               if (pending.timeoutId) {
                 clearTimeout(pending.timeoutId);
@@ -544,12 +573,16 @@ export default function CodeEditor({
                   });
               } else {
                 // someone rejected; notify originator UI (no-op for now)
-                  if (prevLanguageRef.current) {
-                    setSelectedLanguage(prevLanguageRef.current);
-                    prevLanguageRef.current = null;
-                  }
-                  // show rejection notice briefly
-                  pushToast(`User ${from || "peer"} rejected the language change to ${lang}`);
+                if (prevLanguageRef.current) {
+                  setSelectedLanguage(prevLanguageRef.current);
+                  prevLanguageRef.current = null;
+                }
+                // show rejection notice briefly
+                pushToast(
+                  `User ${
+                    from || "peer"
+                  } rejected the language change to ${lang}`
+                );
                 // could show a toast here in future
               }
             }
@@ -561,8 +594,8 @@ export default function CodeEditor({
 
       // send a vector update of the full document state to the new joiner
       channel.on("broadcast", { event: "yjs-request-state" }, (payload) => {
-  const { from } = payload.payload;
-  if (!from || from === clientIdRef.current) return;
+        const { from } = payload.payload;
+        if (!from || from === clientIdRef.current) return;
         const update = Y.encodeStateAsUpdate(ydocRef.current);
         channel.send({
           type: "broadcast",
@@ -573,8 +606,8 @@ export default function CodeEditor({
 
       // --- Apply full Yjs state received from peer ---
       channel.on("broadcast", { event: "yjs-sync" }, (payload) => {
-  const { to, update } = payload.payload;
-  if (to === clientIdRef.current) {
+        const { to, update } = payload.payload;
+        if (to === clientIdRef.current) {
           // mark that we received remote state and cancel any fallback insert
           stateReceivedRef.current = true;
           if (initialInsertTimeoutRef.current) {
@@ -684,58 +717,60 @@ export default function CodeEditor({
   useEffect(() => {
     let aborted = false;
     async function initSession() {
-        try {
-          const resp = await axiosInstance.get(
-            `${baseApiUrl}/sessions/${sessionId}`
+      try {
+        const resp = await axiosInstance.get(
+          `${baseApiUrl}/sessions/${sessionId}`
+        );
+        if (resp.status !== 200) throw new Error(`Session fetch failed`);
+        const session = resp.data;
+        if (aborted) return;
+        // Prefer session.current_code if present. Otherwise fall back to the
+        // first code snippet attached to the question (if any).
+        const sessionCode =
+          typeof session.current_code === "string" && session.current_code
+            ? session.current_code
+            : "";
+
+        // If the session has an authoritative language selection, use it
+        // to initialise the editor language for all participant.
+        const sessionLang =
+          typeof session.current_language === "string" &&
+          session.current_language
+            ? session.current_language
+            : undefined;
+        if (sessionLang) setSelectedLanguage(sessionLang);
+
+        const questionSnippet =
+          question?.codeSnippets && question.codeSnippets.length > 0
+            ? // try a few common fields for snippet content
+              question.codeSnippets[0].code ||
+              question.codeSnippets[0].content ||
+              question.codeSnippets[0].snippet ||
+              ""
+            : "";
+
+        // If session has code use it. Otherwise, only use the question
+        // snippet if the session already has an authoritative language
+        // selected. This avoids seeding code into the session when no
+        // language is chosen.
+        const initial =
+          sessionCode || (sessionLang ? questionSnippet : "") || "";
+
+        // Expose initial code to CodeMirror via defaultValue
+        setInitialCode(initial || undefined);
+
+        // Join realtime channel and let joinRealtimeChannel insert into Y.Text
+        await joinRealtimeChannel(initial);
+
+        // If session had no persisted code but question provided a snippet,
+        // persist it so subsequent joins see it from the session row. Only
+        // persist when an authoritative language exists for the session.
+        if (!sessionCode && questionSnippet && sessionLang) {
+          // Best-effort persist; ignore errors
+          persistSnapshot(baseApiUrl, sessionId, questionSnippet).catch(
+            () => void 0
           );
-          if (resp.status !== 200) throw new Error(`Session fetch failed`);
-          const session = resp.data;
-          if (aborted) return;
-          // Prefer session.current_code if present. Otherwise fall back to the
-          // first code snippet attached to the question (if any).
-          const sessionCode =
-            typeof session.current_code === "string" && session.current_code
-              ? session.current_code
-              : "";
-
-          // If the session has an authoritative language selection, use it
-          // to initialise the editor language for all participant.
-          const sessionLang =
-            typeof session.current_language === "string" && session.current_language
-              ? session.current_language
-              : undefined;
-          if (sessionLang) setSelectedLanguage(sessionLang);
-
-          const questionSnippet =
-            question?.codeSnippets && question.codeSnippets.length > 0
-              ? // try a few common fields for snippet content
-                (question.codeSnippets[0].code ||
-                  question.codeSnippets[0].content ||
-                  question.codeSnippets[0].snippet ||
-                  "")
-              : "";
-
-          // If session has code use it. Otherwise, only use the question
-          // snippet if the session already has an authoritative language
-          // selected. This avoids seeding code into the session when no
-          // language is chosen.
-          const initial = sessionCode || (sessionLang ? questionSnippet : "") || "";
-
-          // Expose initial code to CodeMirror via defaultValue
-          setInitialCode(initial || undefined);
-
-          // Join realtime channel and let joinRealtimeChannel insert into Y.Text
-          await joinRealtimeChannel(initial);
-
-          // If session had no persisted code but question provided a snippet,
-          // persist it so subsequent joins see it from the session row. Only
-          // persist when an authoritative language exists for the session.
-          if (!sessionCode && questionSnippet && sessionLang) {
-            // Best-effort persist; ignore errors
-            persistSnapshot(baseApiUrl, sessionId, questionSnippet).catch(() =>
-              void 0
-            );
-          }
+        }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (e: any) {
         console.log(`Error: ${e.message || e}`);
@@ -817,40 +852,42 @@ export default function CodeEditor({
     [incomingProposal, userId]
   );
 
-    const extensions = useMemo(() => {
-      const langConfig =
-        languageMap[selectedLanguage as keyof typeof languageMap];
-      const langExtensions = langConfig?.extension || [
-        javascript(),
-        indentUnit.of("  "),
-      ];
-      // Add a small bottom padding so final line is reachable.
-      const editorPaddingTheme = EditorView.theme({
-        '&': { height: '100%' },
-        '.cm-scroller': { paddingBottom: '3.5rem' },
-      });
+  const extensions = useMemo(() => {
+    const langConfig =
+      languageMap[selectedLanguage as keyof typeof languageMap];
+    const langExtensions = langConfig?.extension || [
+      javascript(),
+      indentUnit.of("  "),
+    ];
+    // Add a small bottom padding so final line is reachable.
+    const editorPaddingTheme = EditorView.theme({
+      "&": { height: "100%" },
+      ".cm-scroller": { paddingBottom: "3.5rem" },
+    });
 
-      const base = [
-        ...langExtensions,
-        oneDark,
-        indentOnInput(),
-        keymap.of([indentWithTab]),
-        EditorView.lineWrapping,
-        editorPaddingTheme,
-      ];
+    const base = [
+      ...langExtensions,
+      oneDark,
+      indentOnInput(),
+      keymap.of([indentWithTab]),
+      EditorView.lineWrapping,
+      editorPaddingTheme,
+    ];
 
-      // When no language is selected, make the editor non-editable and readOnly
-      // so users are encouraged to pick a language first. Programmatic updates
-      // are still allowed (we still can insert snippets into Y.Text).
-      if (!selectedLanguage) {
-        base.push(EditorView.editable.of(false));
-        base.push(EditorState.readOnly.of(true));
-      }
+    // When no language is selected, make the editor non-editable and readOnly
+    // so users are encouraged to pick a language first. Programmatic updates
+    // are still allowed (we still can insert snippets into Y.Text).
+    if (!selectedLanguage) {
+      base.push(EditorView.editable.of(false));
+      base.push(EditorState.readOnly.of(true));
+    }
 
-      base.push(yCollab(ytextRef.current, awarenessRef.current, { undoManager: false }));
+    base.push(
+      yCollab(ytextRef.current, awarenessRef.current, { undoManager: false })
+    );
 
-      return base;
-    }, [selectedLanguage]);
+    return base;
+  }, [selectedLanguage]);
 
   // Persist language selection to backend so the session row's
   // `current_language` column stays authoritative. This is a lightweight
@@ -859,7 +896,9 @@ export default function CodeEditor({
     (language: string) => {
       // generate proposal id/timestamp up-front so they are available
       // for the timeout cleanup closure and ref storage
-      const proposalId = `${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
+      const proposalId = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2, 8)}`;
       const ts = Date.now();
       try {
         // Update UI state immediately
@@ -951,9 +990,17 @@ export default function CodeEditor({
         >
           <div className="absolute inset-0 bg-black/30" />
           <div className="relative bg-slate-900/95 text-white rounded-lg p-6 w-full max-w-md mx-4 shadow-2xl border border-slate-700/40 z-50">
-            <h3 className="text-lg font-semibold mb-2 text-white">Language change proposed</h3>
+            <h3 className="text-lg font-semibold mb-2 text-white">
+              Language change proposed
+            </h3>
             <p className="text-sm text-slate-300 mb-4">
-              User <strong className="text-white">{incomingProposal.from}</strong> proposes to change the editor language to <strong className="text-white">{incomingProposal.language}</strong>.
+              User{" "}
+              <strong className="text-white">{incomingProposal.from}</strong>{" "}
+              proposes to change the editor language to{" "}
+              <strong className="text-white">
+                {incomingProposal.language}
+              </strong>
+              .
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -977,34 +1024,40 @@ export default function CodeEditor({
       {proposalPending && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[9997]">
           <div className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200 px-4 py-2 rounded shadow">
-            Waiting for other participant to accept language change to <strong>{proposalPending.language}</strong>
-              <button
-                onClick={() => {
-                  // send cancel notification to peers so they can clear their prompt
-                  try {
-                    const lang = proposalPending?.language;
-                    const pid = pendingProposalRef.current?.proposalId;
-                    channelRef.current?.send({
-                      type: "broadcast",
-                      event: "language-cancel",
-                      payload: { from: clientIdRef.current, language: lang, proposalId: pid },
-                    });
-                  } catch (err) {
-                    // ignore
-                  }
-                  if (proposalPending.timeoutId) clearTimeout(proposalPending.timeoutId);
-                  // clear pending ref and revert selection
-                  pendingProposalRef.current = null;
-                  if (prevLanguageRef.current) {
-                    setSelectedLanguage(prevLanguageRef.current);
-                    prevLanguageRef.current = null;
-                  }
-                  setProposalPending(null);
-                }}
-                className="ml-3 underline text-sm"
-              >
-                Cancel
-              </button>
+            Waiting for other participant to accept language change to{" "}
+            <strong>{proposalPending.language}</strong>
+            <button
+              onClick={() => {
+                // send cancel notification to peers so they can clear their prompt
+                try {
+                  const lang = proposalPending?.language;
+                  const pid = pendingProposalRef.current?.proposalId;
+                  channelRef.current?.send({
+                    type: "broadcast",
+                    event: "language-cancel",
+                    payload: {
+                      from: clientIdRef.current,
+                      language: lang,
+                      proposalId: pid,
+                    },
+                  });
+                } catch (err) {
+                  // ignore
+                }
+                if (proposalPending.timeoutId)
+                  clearTimeout(proposalPending.timeoutId);
+                // clear pending ref and revert selection
+                pendingProposalRef.current = null;
+                if (prevLanguageRef.current) {
+                  setSelectedLanguage(prevLanguageRef.current);
+                  prevLanguageRef.current = null;
+                }
+                setProposalPending(null);
+              }}
+              className="ml-3 underline text-sm"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       )}
@@ -1064,8 +1117,14 @@ export default function CodeEditor({
         {!selectedLanguage ? (
           <div className="flex-1 flex items-center justify-center p-8 min-h-[200px]">
             <div className="w-full max-w-2xl text-center rounded-lg p-8">
-              <h3 className="text-xl text-slate-300 font-semibold mb-2">Choose a language to enable the editor</h3>
-              <p className="text-sm text-slate-400 mb-4">The collaborative editor is disabled until a language is selected. Choose a language with the language dropdown above to get started.</p>
+              <h3 className="text-xl text-slate-300 font-semibold mb-2">
+                Choose a language to enable the editor
+              </h3>
+              <p className="text-sm text-slate-400 mb-4">
+                The collaborative editor is disabled until a language is
+                selected. Choose a language with the language dropdown above to
+                get started.
+              </p>
             </div>
           </div>
         ) : (
@@ -1087,20 +1146,20 @@ export default function CodeEditor({
                   // initial document matches the shared document and remote
                   // delta ranges won't be out-of-range.
                   key={`${sessionId}-${selectedLanguage || "none"}`}
-                    // Only provide an initial `value` to CodeMirror when the
-                    // shared Y.Text already contains content. If we pass a
-                    // non-empty `value` while the Y.Text is empty, CodeMirror
-                    // will render that content locally and then the fallback
-                    // insert (or a later Yjs update) can insert the same
-                    // snippet into the CRDT, producing duplicated text. By
-                    // setting `value` to `undefined` when Y.Text is empty we
-                    // let the CRDT (yCollab) be the single source of truth for
-                    // initial content and avoid duplicate inserts.
-                    value={
-                      ytextRef.current && ytextRef.current.length > 0
-                        ? ytextRef.current.toString()
-                        : undefined
-                    }
+                  // Only provide an initial `value` to CodeMirror when the
+                  // shared Y.Text already contains content. If we pass a
+                  // non-empty `value` while the Y.Text is empty, CodeMirror
+                  // will render that content locally and then the fallback
+                  // insert (or a later Yjs update) can insert the same
+                  // snippet into the CRDT, producing duplicated text. By
+                  // setting `value` to `undefined` when Y.Text is empty we
+                  // let the CRDT (yCollab) be the single source of truth for
+                  // initial content and avoid duplicate inserts.
+                  value={
+                    ytextRef.current && ytextRef.current.length > 0
+                      ? ytextRef.current.toString()
+                      : undefined
+                  }
                   height="100%"
                   theme={oneDark}
                   extensions={extensions}
@@ -1136,9 +1195,7 @@ async function persistSnapshot(
   if (typeof code === "string") body.code = code;
   if (typeof language === "string") body.language = language;
   if (Object.keys(body).length === 0) return;
-  await axiosInstance.patch(
-    `${baseUrl}/sessions/${sessionId}/snapshot`,
-    body,
-    { headers: { "Content-Type": "application/json" } }
-  );
+  await axiosInstance.patch(`${baseUrl}/sessions/${sessionId}/snapshot`, body, {
+    headers: { "Content-Type": "application/json" },
+  });
 }

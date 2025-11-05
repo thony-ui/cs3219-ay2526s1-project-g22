@@ -24,6 +24,7 @@ import { PreferenceModal } from "./components/PreferenceModal";
 import { useUser } from "@/contexts/user-context";
 import Header from "@/app/_components/Header";
 import { createClient } from "@/lib/supabase/supabase-client";
+import axiosInstance from "@/lib/axios";
 
 export default function MatchingPage() {
   const [isMatching, setIsMatching] = useState(false);
@@ -44,6 +45,33 @@ export default function MatchingPage() {
     opponentRejectionRate: number;
   } | null>(null);
   const [matchAccepted, setMatchAccepted] = useState(false);
+  const [activeSession, setActiveSession] = useState<{ id: string } | null>(
+    null
+  );
+
+  useEffect(() => {
+    async function checkActiveSession() {
+      try {
+        const res = await axiosInstance.post(
+          "/api/collaboration-service/sessions/getActiveSession"
+        );
+
+        const id =
+          typeof res.data === "string" ? res.data : res.data?.id || null;
+
+        if (id) {
+          setActiveSession({ id });
+        } else {
+          setActiveSession(null);
+        }
+      } catch (err) {
+        console.error("Failed to fetch active session:", err);
+        setActiveSession(null);
+      }
+    }
+
+    if (userId) checkActiveSession();
+  }, [userId]);
 
   // State for Alert
   const [alertInfo, setAlertInfo] = useState<{
@@ -321,6 +349,49 @@ export default function MatchingPage() {
     }
   };
 
+  const handleRejoin = async () => {
+    if (isSubmitting || !activeSession?.id) return;
+    setIsSubmitting(true);
+
+    try {
+      // check the current session status
+      const res = await axiosInstance.get(
+        `/api/collaboration-service/sessions/${activeSession.id}`
+      );
+
+      const session = res?.data;
+      if (!session) {
+        setAlertInfo({
+          message: "Unable to find session information.",
+          variant: "destructive",
+        });
+        setActiveSession(null);
+        return;
+      }
+
+      if (session.status === "completed") {
+        // hide the button and notify user
+        setActiveSession(null);
+        setAlertInfo({
+          message: "This session has already been completed.",
+          variant: "default",
+        });
+        return;
+      }
+
+      // navigate to the session room
+      await router.push(`/room/${activeSession.id}`);
+    } catch (err) {
+      console.error("Failed to rejoin session:", err);
+      setAlertInfo({
+        message: "Failed to rejoin session. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 flex flex-col">
       <Header />
@@ -455,7 +526,7 @@ export default function MatchingPage() {
                     </div>
                   )}
 
-                  <div className="flex justify-center">
+                  <div className="flex justify-center gap-4">
                     {isMatching ? (
                       <Button
                         size="lg"
@@ -467,15 +538,35 @@ export default function MatchingPage() {
                         Cancel Matching
                       </Button>
                     ) : (
-                      <Button
-                        size="lg"
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
-                        onClick={handleToggleMatching}
-                        disabled={isSubmitting}
-                      >
-                        <Shuffle className="mr-2 h-5 w-5" />
-                        Start Matching
-                      </Button>
+                      <>
+                        {activeSession ? (
+                          <Button
+                            size="lg"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white px-8 py-6 text-lg"
+                            onClick={handleRejoin}
+                            disabled={isSubmitting}
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Shuffle className="mr-2 h-5 w-5 animate-spin" />
+                                Rejoining...
+                              </>
+                            ) : (
+                              "Rejoin Session"
+                            )}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="lg"
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg"
+                            onClick={handleToggleMatching}
+                            disabled={isSubmitting}
+                          >
+                            <Shuffle className="mr-2 h-5 w-5" />
+                            Start Matching
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
 

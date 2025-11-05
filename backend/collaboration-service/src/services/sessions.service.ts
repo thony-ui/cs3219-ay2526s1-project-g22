@@ -158,6 +158,50 @@ export async function getAllSessionSummaryOfUser(
   }));
 }
 
+export async function getActiveSession(userId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("sessions")
+    .select("id, updated_at, status")
+    .or(`interviewer_id.eq.${userId},interviewee_id.eq.${userId}`)
+    .eq("status", "active") // only get active sessions
+    .order("updated_at", { ascending: false }) // newest first
+    .limit(1);
+
+  if (error) throw new Error(error.message);
+  if (!data || data.length === 0) return null;
+
+  const session = data[0];
+  if (!session.updated_at) return null;
+
+  const updatedAt = new Date(session.updated_at);
+  if (isNaN(updatedAt.getTime())) {
+    console.warn(
+      "Invalid updated_at for session:",
+      session.id,
+      session.updated_at
+    );
+    return null;
+  }
+
+  const now = new Date();
+  const diffMinutes = (now.getTime() - updatedAt.getTime()) / (1000 * 60);
+
+  // mark completed if last updated more than 3 minutes ago
+  if (diffMinutes > 1) {
+    const { error: updateError } = await supabase
+      .from("sessions")
+      .update({ status: "completed" })
+      .eq("id", session.id);
+
+    if (updateError)
+      console.error("Failed to mark session completed:", updateError);
+    return null;
+  }
+
+  // Session still active
+  return session.id;
+}
+
 // update the current code in the session
 export async function updateSessionSnapshot(
   id: string,

@@ -5,6 +5,7 @@ import {
   updateSessionSnapshot,
   completeSession,
   getAllSessionSummaryOfUser,
+  getActiveSession,
 } from "../services/sessions.service";
 import { authenticateUser } from "./authorization";
 
@@ -125,11 +126,13 @@ router.patch(
   ) => {
     try {
       const { id } = req.params;
-  const { code, language } = req.body;
+      const { code, language } = req.body;
 
       // Require at least one field to update
       if (typeof code !== "string" && typeof language !== "string") {
-        return res.status(400).json({ error: "Missing or invalid snapshot body" });
+        return res
+          .status(400)
+          .json({ error: "Missing or invalid snapshot body" });
       }
 
       // Preserve existing behavior for the common code-only path (keep call
@@ -170,6 +173,20 @@ router.post("/getUserSessions", authenticateUser, async (req, res) => {
     }
 
     const sessions = await getAllSessionSummaryOfUser(userId);
+    res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ error: "Failed to fetch user sessions" });
+  }
+});
+
+router.post("/getActiveSession", authenticateUser, async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: "Unauthorized" });
+    }
+
+    const sessions = await getActiveSession(userId);
     res.json(sessions);
   } catch (err) {
     res.status(500).json({ error: "Failed to fetch user sessions" });
