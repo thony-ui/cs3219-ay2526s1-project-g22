@@ -311,7 +311,6 @@ export default function CodeEditor({
   const stateReceivedRef = useRef<boolean>(false);
   // timeout id used to schedule a fallback initial insert when no remote state arrives
   const initialInsertTimeoutRef = useRef<number | null>(null);
-  // awareness/cursor support removed: no local awareness state or dedupe logic
 
   // keep ref in sync with state so realtime handlers can read latest value
   useEffect(() => {
@@ -381,7 +380,6 @@ export default function CodeEditor({
           // ignore
         }
       }
-      // awareness/cursor cleanup removed
     };
 
     window.addEventListener("beforeunload", onBeforeUnload);
@@ -510,8 +508,6 @@ export default function CodeEditor({
         const update = new Uint8Array(payload.payload.update);
         Y.applyUpdate(ydocRef.current, update);
       });
-
-      // awareness/cursor broadcasts removed
 
       // incoming cursor updates from peers
       channel.on(
@@ -856,10 +852,6 @@ export default function CodeEditor({
           }
 
           console.info("Subscribed to room", sessionId, "clientId:", clientIdRef.current);
-          // Now that we have a derived stable client id, include it in our
-          // awareness 'user' state so peers can detect and prefer the most
-          // recent instance when deduplicating.
-          // awareness/cursor state not used in this build
 
           // Always request the latest document from peers
           channel.send({
@@ -878,8 +870,6 @@ export default function CodeEditor({
           payload: { update: Array.from(update) },
         });
       });
-
-      // awareness/cursor broadcasting removed
 
       // No local fallback insert: we intentionally avoid seeding the shared
       // document from the client when no remote state is present. The session
