@@ -160,11 +160,54 @@ export default function CodeEditor({
   const initialInsertTimeoutRef = useRef<number | null>(null);
   useEffect(() => {
     const awareness = awarenessRef.current;
+    // Set a minimal local user state early (color/name). The full state
+    // (including a stable session/client id) will be updated after the
+    // realtime subscription provides a derived client id.
     awareness.setLocalStateField("user", {
       name: userId || "anon",
       color: "#FF0000",
     });
   }, [userId]);
+
+  // Helper: remove duplicate awareness states for the same user name.
+  // When a participant refreshes they may join with a new awareness client
+  // id while the old id lingers for a short time on other peers; this can
+  // cause two cursors to be shown for the same logical user. We prefer to
+  // keep the state with the highest numeric client id and remove older
+  // entries to avoid duplicate cursors.
+  const dedupeAwarenessByName = useCallback((awareness: Awareness) => {
+    try {
+      const states = Array.from((awareness as any).getStates().entries()) as [number, any][];
+      const byName = new Map<string, number[]>();
+      for (const [id, st] of states) {
+        const name = st?.user?.name ?? String(id);
+        const arr = byName.get(name) || [];
+        arr.push(id);
+        byName.set(name, arr);
+      }
+      const toRemove: number[] = [];
+      for (const [name, ids] of byName.entries()) {
+        if (ids.length <= 1) continue;
+        // Keep the highest client id (heuristic for "most recent")
+        const keep = Math.max(...ids);
+        for (const id of ids) if (id !== keep) toRemove.push(id);
+      }
+      if (toRemove.length > 0) {
+        // Try to remove stale states locally. The local awareness.on('update')
+        // handler will broadcast the change to peers so they also prune.
+        const maybeRemove = (awareness as any).removeStates || (awareness as any).remove;
+        if (typeof maybeRemove === "function") {
+          try {
+            maybeRemove.call(awareness, toRemove);
+          } catch (err) {
+            // ignore removal failures
+          }
+        }
+      }
+    } catch (err) {
+      // ignore any dedupe errors
+    }
+  }, []);
 
   // keep ref in sync with state so realtime handlers can read latest value
   useEffect(() => {
@@ -233,6 +276,33 @@ export default function CodeEditor({
         } catch (err) {
           // ignore
         }
+      }
+      // Attempt to clear and broadcast our awareness removal so peers don't
+      // continue to render our cursor after we refresh/close. We try best-effort
+      // here; failures are ignored.
+      try {
+        const awareness = awarenessRef.current;
+        const localId = (awareness as any).clientID as number | undefined;
+        // remove local state first
+        try {
+          awareness.setLocalState(null);
+        } catch (e) {
+          // ignore
+        }
+        if (channelRef.current && typeof localId === "number") {
+          try {
+            const update = encodeAwarenessUpdate(awareness, [localId]);
+            channelRef.current.send({
+              type: "broadcast",
+              event: "awareness-update",
+              payload: { update: Array.from(update) },
+            });
+          } catch (err) {
+            // ignore
+          }
+        }
+      } catch (err) {
+        // ignore
       }
     };
 
@@ -365,8 +435,19 @@ export default function CodeEditor({
 
       // apply awareness update
       channel.on("broadcast", { event: "awareness-update" }, (payload) => {
-        const update = new Uint8Array(payload.payload.update);
-        applyAwarenessUpdate(awarenessRef.current, update, "remote");
+        try {
+          const raw = payload.payload ?? {};
+          const arr = raw.update as number[] | Uint8Array | undefined;
+          if (!arr) return;
+          const update = new Uint8Array(arr as any);
+          applyAwarenessUpdate(awarenessRef.current, update, "remote");
+          // After applying remote awareness changes, prune any duplicate
+          // states for the same logical user so we don't show duplicate
+          // cursors when peers refresh and rejoin with a new client id.
+          dedupeAwarenessByName(awarenessRef.current);
+        } catch (err) {
+          // ignore
+        }
       });
 
       // incoming language proposal from another client
@@ -672,6 +753,18 @@ export default function CodeEditor({
           }
 
           console.info("Subscribed to room", sessionId, "clientId:", clientIdRef.current);
+          // Now that we have a derived stable client id, include it in our
+          // awareness 'user' state so peers can detect and prefer the most
+          // recent instance when deduplicating.
+          try {
+            awarenessRef.current.setLocalStateField("user", {
+              name: userId || "anon",
+              color: "#FF0000",
+              session: clientIdRef.current,
+            });
+          } catch (err) {
+            // ignore
+          }
 
           // Always request the latest document from peers
           channel.send({
