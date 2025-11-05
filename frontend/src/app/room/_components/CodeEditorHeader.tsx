@@ -20,7 +20,7 @@ function CodeEditorHeader({
         </div>
         <div className="text-sm text-slate-300 truncate min-w-0">
           <span className="block truncate">
-            User: <span className="font-medium text-emerald-400">{userId}</span>
+            Participants: <span className="font-medium text-emerald-400">You</span>, <span className="font-medium text-emerald-400">User {userId}</span>
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
