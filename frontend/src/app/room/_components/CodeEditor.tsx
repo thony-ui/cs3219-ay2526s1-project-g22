@@ -102,6 +102,8 @@ export default function CodeEditor({
     proposalId: string;
     ts: number;
   } | null>(null);
+  // countdown for originator's pending proposal (ms remaining)
+  const [proposalCountdownMs, setProposalCountdownMs] = useState<number | null>(null);
   // stable client id used in realtime messages when `userId` may be undefined
   // We'll prefer the authenticated user id when available. When not, we will
   // attempt to use the Supabase realtime connection/client id (set after
@@ -415,6 +417,37 @@ export default function CodeEditor({
     window.addEventListener("beforeunload", onBeforeUnload);
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [sessionId]);
+
+  // Update the countdown while a proposal is pending. TTL must match
+  // the timeout used in `requestLanguageChange` (10s).
+  useEffect(() => {
+    const TTL = 10000;
+    let iv: number | null = null;
+    const update = () => {
+      const p = pendingProposalRef.current;
+      if (!p) {
+        setProposalCountdownMs(null);
+        return;
+      }
+      const rem = Math.max(0, TTL - (Date.now() - (p.ts || 0)));
+      setProposalCountdownMs(rem);
+      if (rem <= 0 && iv) {
+        clearInterval(iv);
+      }
+    };
+
+    if (proposalPending) {
+      update();
+      iv = window.setInterval(update, 200) as unknown as number;
+    } else {
+      setProposalCountdownMs(null);
+    }
+
+    return () => {
+      if (iv) clearInterval(iv);
+      setProposalCountdownMs(null);
+    };
+  }, [proposalPending]);
 
   // On mount, check if we previously cancelled due to a refresh and show
   // a transient notice to the initiator.
@@ -1450,15 +1483,37 @@ export default function CodeEditor({
           clearTimeout(proposalPending.timeoutId);
         }
         const timeoutId = window.setTimeout(() => {
-          // no response -> clear pending state
-          setProposalPending(null);
+          // no response -> cancel the proposal and notify peers so they
+          // can clear any incoming prompts. Also revert local UI state.
+          try {
+            channelRef.current?.send({
+              type: "broadcast",
+              event: "language-cancel",
+              payload: { from: clientIdRef.current, language, proposalId },
+            });
+          } catch (err) {
+            // ignore send errors
+          }
+
+          // clear pending state
+          if (pendingProposalRef.current && pendingProposalRef.current.timeoutId) {
+            clearTimeout(pendingProposalRef.current.timeoutId);
+          }
           pendingProposalRef.current = null;
+          setProposalPending(null);
+
           // revert UI selection
           if (prevLanguageRef.current) {
             setSelectedLanguage(prevLanguageRef.current);
             prevLanguageRef.current = null;
           }
-        }, 10000) as unknown as number;
+
+          try {
+            pushToast(`Language change to ${language} timed out and was cancelled`, 5000);
+          } catch (err) {
+            // ignore
+          }
+        }, 10000);
         const pending = { language, timeoutId, proposalId, ts };
         pendingProposalRef.current = pending;
         // UI state keeps same shape as before (language + timeoutId)
@@ -1553,6 +1608,11 @@ export default function CodeEditor({
           <div className="bg-yellow-100 dark:bg-yellow-900/40 text-yellow-900 dark:text-yellow-200 px-4 py-2 rounded shadow">
             Waiting for other participant to accept language change to{" "}
             <strong>{proposalPending.language}</strong>
+            {proposalCountdownMs !== null && (
+              <span className="ml-3 inline-block text-sm font-medium text-yellow-800 dark:text-yellow-200">
+                {Math.ceil(proposalCountdownMs / 1000)}s
+              </span>
+            )}
             <button
               onClick={() => {
                 // send cancel notification to peers so they can clear their prompt
