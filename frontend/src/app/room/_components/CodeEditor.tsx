@@ -934,6 +934,27 @@ export default function CodeEditor({
           } catch (err) {
             // ignore
           }
+          // Also proactively send our current cursor/selection to the newly
+          // joined client so they immediately see our caret when they enter.
+          // This fixes the case where a reentering participant doesn't get
+          // existing peers' cursor positions until those peers move their
+          // cursors.
+          try {
+            const view = editorViewRef.current;
+            if (view) {
+              const sel = view.state.selection.main;
+              const payload = {
+                clientId: clientIdRef.current,
+                selection: { anchor: sel.anchor, head: sel.head },
+                user: { name: user && user.name },
+                ts: Date.now(),
+                to: joinedId,
+              } as any;
+              channel.send({ type: "broadcast", event: "cursor-update", payload });
+            }
+          } catch (err) {
+            // ignore
+          }
         } catch (err) {
           // ignore
         }
