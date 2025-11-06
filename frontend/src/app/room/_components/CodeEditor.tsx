@@ -1479,9 +1479,16 @@ export default function CodeEditor({
         }
 
         // show local pending UI and prepare a timeout to abort if nobody answers
+        // If there's an existing pending proposal, clear its timer so the
+        // new proposal starts a fresh countdown.
         if (proposalPending && proposalPending.timeoutId) {
           clearTimeout(proposalPending.timeoutId);
         }
+        if (pendingProposalRef.current && pendingProposalRef.current.timeoutId) {
+          clearTimeout(pendingProposalRef.current.timeoutId);
+        }
+        // clear any previous pending ref before creating a new pending entry
+        pendingProposalRef.current = null;
         const timeoutId = window.setTimeout(() => {
           // no response -> cancel the proposal and notify peers so they
           // can clear any incoming prompts. Also revert local UI state.
@@ -1518,6 +1525,12 @@ export default function CodeEditor({
         pendingProposalRef.current = pending;
         // UI state keeps same shape as before (language + timeoutId)
         setProposalPending({ language, timeoutId });
+        // reset countdown UI to full TTL
+        try {
+          setProposalCountdownMs(10000);
+        } catch (err) {
+          // ignore
+        }
       } catch (err) {
         // ignore
       }
