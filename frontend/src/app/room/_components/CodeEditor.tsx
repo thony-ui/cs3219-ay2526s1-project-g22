@@ -735,7 +735,7 @@ export default function CodeEditor({
               incomingProposalRef.current = null;
               setIncomingProposal(null);
               pushToast(
-                `User ${getPeerName(from, "User")} cancelled language change to ${lang || "<unknown>"}`
+                `${getPeerName(from, "User")} cancelled language change to ${lang || "<unknown>"}`
               );
             }
             // If the cancel targets our outgoing pending proposal, clear it
