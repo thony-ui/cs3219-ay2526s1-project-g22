@@ -122,6 +122,14 @@ export default function CodeEditor({
   const remoteCursorsRef = useRef<Record<string, any>>({});
   // peer info cache: clientId -> { id?: userId, name?: displayName }
   const peerInfoRef = useRef<Record<string, { id?: string; name?: string }>>({});
+  // Visible peer display state: keep in React state so header updates when
+  // peers join/leave. We also remember which peer id is currently shown.
+  const [peerUsernameState, setPeerUsernameState] = useState<string | undefined>(
+    undefined
+  );
+  const [peerIdDisplayed, setPeerIdDisplayed] = useState<string | undefined>(
+    undefined
+  );
 
   const getPeerName = (id?: string, fallback?: string) => {
     if (!id) return fallback;
@@ -842,12 +850,40 @@ export default function CodeEditor({
             payload?.presence?.meta?.user?.name ||
             payload?.old?.meta?.name ||
             payload?.old?.meta?.user?.name;
-          const name = cached?.name || metaName || leftId || "peer";
+          const name = cached?.name || metaName || leftId || "User";
           console.log("realtime: peer left presence key:", leftId);
           // don't show a toast for our own disconnect
           if (leftId && String(leftId) === String(clientIdRef.current)) return;
+
+          // Remove from cached peer info
+          if (leftId && peerInfoRef.current && peerInfoRef.current[leftId]) {
+            try {
+              // delete from cache
+              const copy = { ...(peerInfoRef.current || {}) };
+              delete copy[leftId];
+              peerInfoRef.current = copy;
+            } catch (err) {
+              // ignore
+            }
+          }
+
+          // If the peer that left is the one currently shown in the header,
+          // clear it or rotate to another available peer.
+          if (leftId && peerIdDisplayed && String(leftId) === String(peerIdDisplayed)) {
+            const remaining = Object.keys(peerInfoRef.current || {}).filter((k) => k !== clientIdRef.current);
+            if (remaining.length > 0) {
+              const next = remaining[0];
+              const nextName = peerInfoRef.current[next]?.name || next;
+              setPeerIdDisplayed(next);
+              setPeerUsernameState(nextName);
+            } else {
+              setPeerIdDisplayed(undefined);
+              setPeerUsernameState(undefined);
+            }
+          }
+
           try {
-            pushToast(`User ${name} left the page`);
+            pushToast(`${name} left the page`);
           } catch (err) {
             // ignore
           }
@@ -968,8 +1004,22 @@ export default function CodeEditor({
               ...(peerInfoRef.current || {}),
               [from]: { id: user.id, name: user.name },
             };
+
+            // If we don't currently show a peer, adopt this one for the
+            // header. If we already show a peer and this is the same id,
+            // update the displayed name in case it changed.
+            const displayName = (user && (user.name || String(user.id))) || from;
+            setPeerUsernameState((cur) => {
+              if (!peerIdDisplayed) {
+                setPeerIdDisplayed(from);
+                return displayName;
+              }
+              if (peerIdDisplayed === from) return displayName;
+              return cur;
+            });
+
             try {
-              pushToast(`${getPeerName(from, "User")} joined the session`);
+              pushToast(`${displayName} joined the session`);
             } catch (err) {
               // ignore
             }
@@ -1529,16 +1579,8 @@ export default function CodeEditor({
           <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
             <CodeEditorHeader
               sessionId={sessionId}
-              // prefer the first discovered peer's friendly name (exclude our own client id)
-              peerUsername={
-                (() => {
-                  const peerKeys = Object.keys(peerInfoRef.current || {}).filter(
-                    (k) => k !== clientIdRef.current
-                  );
-                  const firstPeer = peerKeys[0];
-                  return getPeerName(firstPeer, "");
-                })()
-              }
+              // peer username is tracked in state so header updates when peers join/leave
+              peerUsername={peerUsernameState}
               // provide our own display name when available
               ownUsername={user?.name || undefined}
               isBlocked={false} // everyone can edit

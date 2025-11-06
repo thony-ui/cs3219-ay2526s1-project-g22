@@ -12,7 +12,7 @@ function CodeEditorHeader({
   ownUsername?: string | null;
   isBlocked: boolean;
 }) {
-  const own = ownUsername + " (You)" || "You";
+  const own = ownUsername ? `${ownUsername} (You)` : "You";
   const peer = peerUsername || null;
   return (
     <div className="w-full flex items-center justify-between gap-4">

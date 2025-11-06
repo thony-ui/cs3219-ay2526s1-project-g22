@@ -26,8 +26,8 @@ describe("CodeEditorHeader", () => {
   it("renders user ID correctly", () => {
     render(<CodeEditorHeader {...defaultProps} />);
 
-    expect(screen.getByText("Online:")).toBeInTheDocument();
-    expect(screen.getByText("user-456")).toBeInTheDocument();
+  expect(screen.getByText(/Online:/)).toBeInTheDocument();
+    expect(screen.getByText("user-456 (You)")).toBeInTheDocument();
     expect(screen.getByText("peer-123")).toBeInTheDocument();
   });
 
@@ -81,7 +81,7 @@ describe("CodeEditorHeader", () => {
   it("displays user ID with correct styling", () => {
     render(<CodeEditorHeader {...defaultProps} />);
 
-    const userIdElement = screen.getByText("user-456");
+    const userIdElement = screen.getByText("user-456 (You)");
     expect(userIdElement).toHaveClass("font-medium", "text-emerald-400");
   });
 
@@ -103,6 +103,6 @@ describe("CodeEditorHeader", () => {
       <CodeEditorHeader {...defaultProps} ownUsername="different-user" />
     );
 
-    expect(screen.getByText("different-user")).toBeInTheDocument();
+    expect(screen.getByText("different-user (You)")).toBeInTheDocument();
   });
 });
