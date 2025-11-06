@@ -124,12 +124,13 @@ export default function CodeEditor({
   const peerInfoRef = useRef<Record<string, { id?: string; name?: string }>>({});
 
   const getPeerName = (id?: string, fallback?: string) => {
-    if (!id) return fallback || "peer";
+    if (!id) return fallback;
     const cached = peerInfoRef.current?.[id];
     if (cached && cached.name) return cached.name;
     // fallback to short id if provided
-    return fallback || String(id).slice(0, 6);
+    return fallback;
   };
+
 
   const pickColor = (id: string) => {
     const colors = [
@@ -767,7 +768,7 @@ export default function CodeEditor({
                 }
                 // show rejection notice briefly
                 pushToast(
-                  `User ${getPeerName(from, String(from).slice(0, 6))} rejected the language change to ${lang}`
+                  `${getPeerName(from, "User")} rejected the language change to ${lang}`
                 );
                 // could show a toast here in future
               }
@@ -968,7 +969,7 @@ export default function CodeEditor({
               [from]: { id: user.id, name: user.name },
             };
             try {
-              pushToast(`User ${user.name || String(from).slice(0, 6)} joined the session`);
+              pushToast(`${getPeerName(from, "User")} joined the session`);
             } catch (err) {
               // ignore
             }
@@ -1434,8 +1435,7 @@ export default function CodeEditor({
               Language change proposed
             </h3>
             <p className="text-sm text-slate-700 mb-4">
-              User{" "}
-              <strong className="font-semibold text-black">{incomingProposal.from}</strong>{" "}
+              <strong className="font-semibold text-black">{getPeerName(incomingProposal.from, "User")}</strong>{" "}
               proposes to change the editor language to{" "}
               <strong className="font-semibold text-black">
                 {incomingProposal.language}
@@ -1529,7 +1529,18 @@ export default function CodeEditor({
           <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
             <CodeEditorHeader
               sessionId={sessionId}
-              userId={userId || "unknown"}
+              // prefer the first discovered peer's friendly name (exclude our own client id)
+              peerUsername={
+                (() => {
+                  const peerKeys = Object.keys(peerInfoRef.current || {}).filter(
+                    (k) => k !== clientIdRef.current
+                  );
+                  const firstPeer = peerKeys[0];
+                  return getPeerName(firstPeer, "");
+                })()
+              }
+              // provide our own display name when available
+              ownUsername={user?.name || undefined}
               isBlocked={false} // everyone can edit
             />
           </div>

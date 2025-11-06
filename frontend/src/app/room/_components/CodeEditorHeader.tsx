@@ -3,13 +3,17 @@ import EndSessionButton from "./EndSessionBtn";
 
 function CodeEditorHeader({
   sessionId,
-  userId,
+  peerUsername,
+  ownUsername,
   isBlocked,
 }: {
   sessionId: string;
-  userId: string;
+  peerUsername?: string | null;
+  ownUsername?: string | null;
   isBlocked: boolean;
 }) {
+  const own = ownUsername + " (You)" || "You";
+  const peer = peerUsername || null;
   return (
     <div className="w-full flex items-center justify-between gap-4">
       <div className="flex items-center gap-4 min-w-0">
@@ -20,19 +24,21 @@ function CodeEditorHeader({
         </div>
         <div className="text-sm text-slate-300 truncate min-w-0">
           <span className="block truncate">
-            Participants: <span className="font-medium text-emerald-400">You</span>, <span className="font-medium text-emerald-400">User {userId}</span>
+            Online: <span className="font-medium text-emerald-400">{own}</span>
+            {peer ? ", " : ""}
+            {peer ? (
+              <span className="font-medium text-emerald-400">{peer}</span>
+            ) : null}
           </span>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <div
-            className={`w-2 h-2 rounded-full ${
-              isBlocked ? "bg-amber-500" : "bg-emerald-500"
-            }`}
+            className={`w-2 h-2 rounded-full ${isBlocked ? "bg-amber-500" : "bg-emerald-500"
+              }`}
           />
           <span
-            className={`text-xs font-medium ${
-              isBlocked ? "text-amber-400" : "text-emerald-400"
-            } max-w-[8rem] truncate block`}
+            className={`text-xs font-medium ${isBlocked ? "text-amber-400" : "text-emerald-400"
+              } max-w-[8rem] truncate block`}
           >
             {isBlocked ? "Read-only" : "Collaborative"}
           </span>

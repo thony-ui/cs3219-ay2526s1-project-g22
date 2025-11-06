@@ -139,20 +139,13 @@ export default function RoomPage({
       {/* Code Editor Section */}
       <div className="w-3/5 min-h-0 flex flex-col p-6 pl-3">
         <div className="h-full bg-slate-800/60 backdrop-blur-sm rounded-xl shadow-2xl border border-slate-600/50 overflow-hidden">
-          {/* Header spanning editor + chat */}
-          <div className="flex justify-between items-center p-4 bg-slate-900/50 border-b border-slate-600/30">
-            <CodeEditorHeader
-              sessionId={roomId}
-              userId={user?.id || "unknown"}
-              isBlocked={false}
-            />
-          </div>
+
           <div className="relative flex h-full min-h-0">
             <div className="flex-1 min-w-0">
               <CodeEditor
                 sessionId={roomId}
                 question={question}
-                showHeader={false}
+                showHeader={true}
               />
             </div>
             {/* Chat overlays the editor instead of shifting layout */}

@@ -11,7 +11,8 @@ jest.mock("../EndSessionBtn", () => {
 describe("CodeEditorHeader", () => {
   const defaultProps = {
     sessionId: "test-session-123",
-    userId: "user-456",
+    ownUsername: "user-456",
+    peerUsername: "peer-123",
     isBlocked: false,
   };
 
@@ -25,8 +26,9 @@ describe("CodeEditorHeader", () => {
   it("renders user ID correctly", () => {
     render(<CodeEditorHeader {...defaultProps} />);
 
-    expect(screen.getByText("User:")).toBeInTheDocument();
+    expect(screen.getByText("Online:")).toBeInTheDocument();
     expect(screen.getByText("user-456")).toBeInTheDocument();
+    expect(screen.getByText("peer-123")).toBeInTheDocument();
   });
 
   it("displays collaborative status when not blocked", () => {
@@ -97,7 +99,9 @@ describe("CodeEditorHeader", () => {
   });
 
   it("handles different user IDs", () => {
-    render(<CodeEditorHeader {...defaultProps} userId="different-user" />);
+    render(
+      <CodeEditorHeader {...defaultProps} ownUsername="different-user" />
+    );
 
     expect(screen.getByText("different-user")).toBeInTheDocument();
   });
