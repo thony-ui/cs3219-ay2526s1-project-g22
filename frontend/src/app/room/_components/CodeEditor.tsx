@@ -131,14 +131,24 @@ export default function CodeEditor({
   const [peerIdDisplayed, setPeerIdDisplayed] = useState<string | undefined>(
     undefined
   );
+  // refs to keep latest values accessible from realtime handlers which close
+  // over the original joinRealtimeChannel callback (avoids stale closures)
+  const peerIdDisplayedRef = useRef<string | undefined>(undefined);
+  const peerUsernameRef = useRef<string | undefined>(undefined);
 
   const getPeerName = (id?: string, fallback?: string) => {
     if (!id) return fallback;
-    // If the id matches the currently displayed peer, return the tracked name
-    if (peerIdDisplayed && id === peerIdDisplayed && peerUsernameState)
-      return peerUsernameState;
+    // Use refs to avoid stale closure values when called from realtime handlers
+    if (peerIdDisplayedRef.current && id === peerIdDisplayedRef.current && peerUsernameRef.current)
+      return peerUsernameRef.current;
     return fallback;
   };
+
+  // keep refs in sync with state so event handlers can read latest values
+  useEffect(() => {
+    peerIdDisplayedRef.current = peerIdDisplayed;
+    peerUsernameRef.current = peerUsernameState;
+  }, [peerIdDisplayed, peerUsernameState]);
 
 
   const pickColor = (id: string) => {
@@ -857,9 +867,34 @@ export default function CodeEditor({
 
           // If the peer that left is the one currently shown in the header,
           // clear the displayed peer so the header no longer shows a departed user.
-          if (leftId && peerIdDisplayed && String(leftId) === String(peerIdDisplayed)) {
+          if (leftId && peerIdDisplayedRef.current && String(leftId) === String(peerIdDisplayedRef.current)) {
             setPeerIdDisplayed(undefined);
+            peerIdDisplayedRef.current = undefined;
             setPeerUsernameState(undefined);
+            peerUsernameRef.current = undefined;
+          }
+
+          // Remove remote cursor for the leaving peer so decorations/gutter
+          // markers disappear from the editor immediately.
+          try {
+            if (leftId && remoteCursorsRef.current && remoteCursorsRef.current[leftId]) {
+              const updated = { ...(remoteCursorsRef.current || {}) };
+              delete updated[leftId];
+              remoteCursorsRef.current = updated;
+              // dispatch editor update to refresh decorations and gutter
+              try {
+                editorViewRef.current?.dispatch({
+                  effects: [
+                    setRemoteCursorsEffect.of(updated),
+                    setRemoteGutterEffect.of(updated),
+                  ],
+                });
+              } catch (err) {
+                // ignore dispatch errors
+              }
+            }
+          } catch (err) {
+            // ignore
           }
 
           try {
@@ -984,14 +1019,12 @@ export default function CodeEditor({
             // update the displayed name in case it changed.
             // Only show a username or the literal string 'User' as fallback.
             const displayName = (user && user.name) || "User";
-            setPeerUsernameState((cur) => {
-              if (!peerIdDisplayed) {
-                setPeerIdDisplayed(from);
-                return displayName;
-              }
-              if (peerIdDisplayed === from) return displayName;
-              return cur;
-            });
+            // Update both state and refs atomically so presence.leave and
+            // other handlers read consistent values (avoid stale closures).
+            setPeerIdDisplayed(from);
+            peerIdDisplayedRef.current = from;
+            setPeerUsernameState(displayName);
+            peerUsernameRef.current = displayName;
 
             try {
               pushToast(`${displayName} joined the session`);
