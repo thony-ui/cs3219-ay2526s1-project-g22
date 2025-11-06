@@ -894,7 +894,7 @@ export default function CodeEditor({
       );
 
       // --- Presence handlers ---
-  channel.on("presence", { event: "leave" }, (payload: Record<string, unknown>) => {
+      channel.on("presence", { event: "leave" }, (payload: Record<string, unknown>) => {
         try {
           console.log("realtime: presence.leave payload:", payload);
           const p = payload as Record<string, unknown>;
@@ -963,7 +963,7 @@ export default function CodeEditor({
       });
 
       // presence.join: someone (possibly us) joined — query the peer for their user info
-  channel.on("presence", { event: "join" }, (payload: Record<string, unknown>) => {
+      channel.on("presence", { event: "join" }, (payload: Record<string, unknown>) => {
         try {
           console.log("realtime: presence.join payload:", payload);
           const p = payload as Record<string, unknown>;
@@ -1380,7 +1380,7 @@ export default function CodeEditor({
         initialSpacer: () => gutterSpacer,
         class: "cm-gutter-remote",
         markers: (view) => view.state.field(remoteGutterField),
-  widgetMarker: (view, marker) => marker as unknown as GutterMarker,
+        widgetMarker: (view, marker) => marker as unknown as GutterMarker,
         side: "before",
         domEventHandlers: {
           mouseover(view, line, event) {
