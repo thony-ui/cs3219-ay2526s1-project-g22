@@ -13,6 +13,7 @@ import { EditorView, keymap, Decoration, WidgetType, GutterMarker, gutter } from
 import { EditorState, StateEffect, StateField, RangeSet } from "@codemirror/state";
 import { DecorationSet } from "@codemirror/view";
 import { RealtimeChannel } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import CodeMirror from "@uiw/react-codemirror";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,6 +25,16 @@ import CodeEditorSubmissionResults from "./CodeEditorSubmissionResults";
 // --- YJS imports ---
 import { yCollab } from "y-codemirror.next";
 import * as Y from "yjs";
+import type { Awareness } from "y-protocols/awareness";
+
+// Remote cursor info stored per client id
+interface RemoteCursor {
+  anchor: number;
+  head: number;
+  userName?: string;
+  color?: string;
+  ts?: number;
+}
 
 interface SubmissionResult {
   language: string;
@@ -121,7 +132,7 @@ export default function CodeEditor({
   const editorViewRef = useRef<EditorView | null>(null);
 
   // Remote cursors map: clientId -> { anchor, head, userName?, color, ts }
-  const remoteCursorsRef = useRef<Record<string, any>>({});
+  const remoteCursorsRef = useRef<Record<string, RemoteCursor>>({});
   // NOTE: peer info caching via ref was removed in favor of explicit React
   // state (`peerUsernameState` / `peerIdDisplayed`) which drives header
   // re-renders. This avoids stale header display when peers leave.
@@ -171,7 +182,7 @@ export default function CodeEditor({
   };
 
   // StateEffect & StateField used to update editor decorations for remote cursors
-  const setRemoteCursorsEffect = useMemo(() => StateEffect.define<Record<string, any>>(), []);
+  const setRemoteCursorsEffect = useMemo(() => StateEffect.define<Record<string, RemoteCursor>>(), []);
   const remoteCursorsField = useMemo(() =>
     StateField.define<DecorationSet>({
       create() {
@@ -182,7 +193,8 @@ export default function CodeEditor({
           if (e.is(setRemoteCursorsEffect)) {
             const cursors = e.value ?? {};
             // build decorations from cursors and current doc
-            const builder: any[] = [];
+            type DecRange = ReturnType<Decoration["range"]>;
+            const builder: DecRange[] = [];
             const doc = tr.state.doc;
             Object.keys(cursors).forEach((cid) => {
               const c = cursors[cid];
@@ -230,11 +242,11 @@ export default function CodeEditor({
                 // Allow DOM events on the widget so hover/title works in all browsers
                 ignoreEvent() { return false; }
               }
-              const caret = Decoration.widget({ widget: new CursorWidget(c.color, c.userName || cid, cid === clientIdRef.current), side: 1 }).range(head);
+              const caret = Decoration.widget({ widget: new CursorWidget(String(c.color || ""), String(c.userName || cid), cid === clientIdRef.current), side: 1 }).range(head);
               builder.push(caret);
             });
             // convert array to Decoration.set
-            const set = Decoration.set(builder as any, true);
+            const set = Decoration.set(builder as readonly DecRange[], true);
             decos = set;
           }
         }
@@ -246,7 +258,7 @@ export default function CodeEditor({
     }), [setRemoteCursorsEffect]
   );
   // Gutter markers: show a small colored dot next to the line number for remote cursors
-  const setRemoteGutterEffect = useMemo(() => StateEffect.define<Record<string, any>>(), []);
+  const setRemoteGutterEffect = useMemo(() => StateEffect.define<Record<string, RemoteCursor>>(), []);
   const remoteGutterField = useMemo(() =>
     StateField.define<RangeSet<GutterMarker>>({
       create() {
@@ -260,7 +272,8 @@ export default function CodeEditor({
           if (e.is(setRemoteGutterEffect)) {
             const cursors = e.value ?? {};
             const doc = tr.state.doc;
-            const byLine: any[] = [];
+            type GutterRange = ReturnType<GutterMarker["range"]>;
+            const byLine: GutterRange[] = [];
             Object.keys(cursors).forEach((cid) => {
               const c = cursors[cid];
               if (!c || typeof c.head !== "number") return;
@@ -296,10 +309,10 @@ export default function CodeEditor({
                   return el;
                 }
               }
-              const marker = new RemoteGutterMarker(c.color, c.userName || cid, cid === clientIdRef.current);
+              const marker = new RemoteGutterMarker(String(c.color || ""), String(c.userName || cid), cid === clientIdRef.current);
               byLine.push(marker.range(line.from));
             });
-            markers = RangeSet.of(byLine as any, true) as unknown as RangeSet<GutterMarker>;
+            markers = RangeSet.of(byLine as readonly GutterRange[], true) as unknown as RangeSet<GutterMarker>;
           }
         }
         return markers;
@@ -580,18 +593,18 @@ export default function CodeEditor({
             const pl = (raw.payload as Record<string, unknown> | undefined) ?? raw;
             const cid = (pl.clientId as string) || (pl.from as string) || undefined;
             const sel = (pl.selection as { anchor: number; head: number } | undefined) || pl;
-            const userMeta = (pl.user as any) || {};
+            const userMeta = (pl.user as Record<string, unknown>) || {};
             if (!cid || cid === clientIdRef.current) return;
             const map = {
               ...(remoteCursorsRef.current || {}),
               [cid]: {
                 anchor: typeof sel.anchor === "number" ? sel.anchor : 0,
                 head: typeof sel.head === "number" ? sel.head : 0,
-                userName: userMeta.name || cid,
+                userName: String((userMeta as Record<string, unknown>)['name'] ?? cid),
                 color: pickColor(cid),
                 ts: typeof pl.ts === "number" ? pl.ts : Date.now(),
-              },
-            };
+              } as RemoteCursor,
+            } as Record<string, RemoteCursor>;
             remoteCursorsRef.current = map;
             // update decorations and gutter markers in the editor if available
             try {
@@ -881,17 +894,18 @@ export default function CodeEditor({
       );
 
       // --- Presence handlers ---
-      channel.on("presence", { event: "leave" }, (payload: any) => {
+  channel.on("presence", { event: "leave" }, (payload: Record<string, unknown>) => {
         try {
           console.log("realtime: presence.leave payload:", payload);
+          const p = payload as Record<string, unknown>;
           // common shapes: payload.key or payload.presence or payload.old
-          const leftId = payload?.key || payload?.presence?.key || payload?.old?.key || payload?.old?.new?.key;
+          const leftId = (p['key'] as string) || ((p['presence'] as Record<string, unknown>)?.['key'] as string) || ((p['old'] as Record<string, unknown>)?.['key'] as string) || (((p['old'] as Record<string, unknown>)?.['new'] as Record<string, unknown>)?.['key'] as string);
           // try to find a friendly name in presence meta as fallback
           const metaName =
-            payload?.presence?.meta?.name ||
-            payload?.presence?.meta?.user?.name ||
-            payload?.old?.meta?.name ||
-            payload?.old?.meta?.user?.name;
+            (((p['presence'] as Record<string, unknown>)?.['meta'] as Record<string, unknown>)?.['name'] as string) ||
+            ((((p['presence'] as Record<string, unknown>)?.['meta'] as Record<string, unknown>)?.['user'] as Record<string, unknown>)?.['name'] as string) ||
+            (((p['old'] as Record<string, unknown>)?.['meta'] as Record<string, unknown>)?.['name'] as string) ||
+            ((((p['old'] as Record<string, unknown>)?.['meta'] as Record<string, unknown>)?.['user'] as Record<string, unknown>)?.['name'] as string);
           // Prefer known display name sources in order:
           // 1) if the leaving id matches the currently-displayed peer, use that name
           // 2) any cached remote cursor entry for that client id (contains userName)
@@ -949,10 +963,11 @@ export default function CodeEditor({
       });
 
       // presence.join: someone (possibly us) joined — query the peer for their user info
-      (channel as any).on("presence", { event: "join" }, (payload: any) => {
+  channel.on("presence", { event: "join" }, (payload: Record<string, unknown>) => {
         try {
           console.log("realtime: presence.join payload:", payload);
-          const joinedId = payload?.key || payload?.presence?.key || payload?.new?.key || payload?.new?.old?.key;
+          const p = payload as Record<string, unknown>;
+          const joinedId = (p['key'] as string) || ((p['presence'] as Record<string, unknown>)?.['key'] as string) || (((p['new'] as Record<string, unknown>)?.['key']) as string) || ((((p['new'] as Record<string, unknown>)?.['old'] as Record<string, unknown>)?.['key']) as string);
           if (!joinedId) return;
           // ignore our own join
           if (String(joinedId) === String(clientIdRef.current)) return;
@@ -982,7 +997,7 @@ export default function CodeEditor({
                 user: { name: user && user.name },
                 ts: Date.now(),
                 to: joinedId,
-              } as any;
+              };
               channel.send({ type: "broadcast", event: "cursor-update", payload });
             }
           } catch (err) {
@@ -1003,15 +1018,15 @@ export default function CodeEditor({
           // runtime. Different runtime versions expose different props so
           // attempt a few fallbacks before creating a local id.
           try {
-            const ch: any = channel;
-            const supabaseAny: any = supabase;
+            const ch = channel as unknown as { subscription?: { id?: string }; id?: string; socket?: { id?: string } };
+            const supabaseRec = supabase as unknown as Record<string, unknown>;
             const derived =
               userId ||
               ch?.subscription?.id ||
               ch?.id ||
               ch?.socket?.id ||
-              supabaseAny?.realtime?.connection?.id ||
-              supabaseAny?.realtime?.client?.connection?.id;
+              (((supabaseRec['realtime'] as Record<string, unknown> | undefined)?.['connection'] as Record<string, unknown> | undefined)?.['id'] as string | undefined) ||
+              (((supabaseRec['realtime'] as Record<string, unknown> | undefined)?.['client'] as Record<string, unknown> | undefined)?.['connection'] as Record<string, unknown> | undefined)?.['id'] as string | undefined;
             clientIdRef.current =
               (typeof derived === "string" && derived) ||
               `local-${Math.random().toString(36).slice(2, 9)}`;
@@ -1184,9 +1199,8 @@ export default function CodeEditor({
             () => void 0
           );
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (e: any) {
-        console.log(`Error: ${e.message || e}`);
+      } catch (e: unknown) {
+        console.log(`Error: ${e instanceof Error ? e.message : e}`);
       }
     }
     initSession();
@@ -1295,10 +1309,9 @@ export default function CodeEditor({
       base.push(EditorState.readOnly.of(true));
     }
 
-    base.push(
-      // y-collab (CRDT) integration
-      yCollab(ytextRef.current, undefined as any, { undoManager: false })
-    );
+    // y-collab (CRDT) integration
+    const awareness: Awareness | undefined = undefined;
+    base.push(yCollab(ytextRef.current, awareness, { undoManager: false }));
 
     // Add remote cursor decorations/state
     base.push(remoteCursorsField);
@@ -1367,7 +1380,7 @@ export default function CodeEditor({
         initialSpacer: () => gutterSpacer,
         class: "cm-gutter-remote",
         markers: (view) => view.state.field(remoteGutterField),
-        widgetMarker: (view, marker) => marker as any,
+  widgetMarker: (view, marker) => marker as unknown as GutterMarker,
         side: "before",
         domEventHandlers: {
           mouseover(view, line, event) {
