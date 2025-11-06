@@ -120,6 +120,16 @@ export default function CodeEditor({
 
   // Remote cursors map: clientId -> { anchor, head, userName?, color, ts }
   const remoteCursorsRef = useRef<Record<string, any>>({});
+  // peer info cache: clientId -> { id?: userId, name?: displayName }
+  const peerInfoRef = useRef<Record<string, { id?: string; name?: string }>>({});
+
+  const getPeerName = (id?: string, fallback?: string) => {
+    if (!id) return fallback || "peer";
+    const cached = peerInfoRef.current?.[id];
+    if (cached && cached.name) return cached.name;
+    // fallback to short id if provided
+    return fallback || String(id).slice(0, 6);
+  };
 
   const pickColor = (id: string) => {
     const colors = [
@@ -396,8 +406,7 @@ export default function CodeEditor({
         const parsed = JSON.parse(raw || "{}");
         const lang = parsed?.language;
         pushToast(
-          `Your pending language change to ${
-            lang || "<unknown>"
+          `Your pending language change to ${lang || "<unknown>"
           } was cancelled due to a refresh`
         );
         sessionStorage.removeItem(storageKey);
@@ -417,8 +426,7 @@ export default function CodeEditor({
         const parsed = JSON.parse(raw || "{}");
         const lang = parsed?.language;
         pushToast(
-          `You refreshed while a proposal was pending; the proposal for ${
-            lang || "<unknown>"
+          `You refreshed while a proposal was pending; the proposal for ${lang || "<unknown>"
           } was auto-rejected.`
         );
         sessionStorage.removeItem(storageKey);
@@ -674,9 +682,7 @@ export default function CodeEditor({
               incomingProposalRef.current = null;
               setIncomingProposal(null);
               pushToast(
-                `User ${from} cancelled language change to ${
-                  lang || "<unknown>"
-                }`
+                `User ${getPeerName(from, String(from).slice(0, 6))} cancelled language change to ${lang || "<unknown>"}`
               );
             }
             // If the cancel targets our outgoing pending proposal, clear it
@@ -761,9 +767,7 @@ export default function CodeEditor({
                 }
                 // show rejection notice briefly
                 pushToast(
-                  `User ${
-                    from || "peer"
-                  } rejected the language change to ${lang}`
+                  `User ${getPeerName(from, String(from).slice(0, 6))} rejected the language change to ${lang}`
                 );
                 // could show a toast here in future
               }
@@ -823,6 +827,58 @@ export default function CodeEditor({
         }
       );
 
+      // --- Presence handlers ---
+      channel.on("presence", { event: "leave" }, (payload: any) => {
+        try {
+          console.log("realtime: presence.leave payload:", payload);
+          // common shapes: payload.key or payload.presence or payload.old
+          const leftId = payload?.key || payload?.presence?.key || payload?.old?.key || payload?.old?.new?.key;
+          // Prefer cached peer info if we've already queried them
+          const cached = leftId ? peerInfoRef.current?.[leftId] : undefined;
+          // try to find a friendly name in presence meta as fallback
+          const metaName =
+            payload?.presence?.meta?.name ||
+            payload?.presence?.meta?.user?.name ||
+            payload?.old?.meta?.name ||
+            payload?.old?.meta?.user?.name;
+          const name = cached?.name || metaName || leftId || "peer";
+          console.log("realtime: peer left presence key:", leftId);
+          // don't show a toast for our own disconnect
+          if (leftId && String(leftId) === String(clientIdRef.current)) return;
+          try {
+            pushToast(`User ${name} left the page`);
+          } catch (err) {
+            // ignore
+          }
+        } catch (err) {
+          console.warn("realtime: presence.leave handler error", err);
+        }
+      });
+
+      // presence.join: someone (possibly us) joined — query the peer for their user info
+      (channel as any).on("presence", { event: "join" }, (payload: any) => {
+        try {
+          console.log("realtime: presence.join payload:", payload);
+          const joinedId = payload?.key || payload?.presence?.key || payload?.new?.key || payload?.new?.old?.key;
+          if (!joinedId) return;
+          // ignore our own join
+          if (String(joinedId) === String(clientIdRef.current)) return;
+
+          // send a direct broadcast asking the peer to identify themselves
+          try {
+            channel.send({
+              type: "broadcast",
+              event: "who-are-you",
+              payload: { to: joinedId, from: clientIdRef.current },
+            });
+          } catch (err) {
+            // ignore
+          }
+        } catch (err) {
+          // ignore
+        }
+      });
+
       // subscribe
       const sub = await channel.subscribe(async (status) => {
         if (status === "SUBSCRIBED") {
@@ -862,6 +918,66 @@ export default function CodeEditor({
         }
       });
 
+      // --- Broadcast handlers for identity exchange ---
+      // When a peer asks "who-are-you" respond with our user id and display name
+      channel.on(
+        "broadcast",
+        { event: "who-are-you" },
+        (payload: BroadcastPayload) => {
+          try {
+            const pl = payload.payload ?? {};
+            const to = pl.to as string | undefined;
+            const from = pl.from as string | undefined;
+            if (!to || to !== clientIdRef.current) return;
+            // send identity back to requester
+            const displayName = user && (user.name || "peer");
+            try {
+              channel.send({
+                type: "broadcast",
+                event: "i-am",
+                payload: {
+                  to: from,
+                  from: clientIdRef.current,
+                  user: { id: userId, name: displayName },
+                },
+              });
+            } catch (err) {
+              // ignore
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      );
+
+      // When a peer responds with their identity, cache it and show a toast
+      channel.on(
+        "broadcast",
+        { event: "i-am" },
+        (payload: BroadcastPayload) => {
+          try {
+            const pl = payload.payload ?? {};
+            const to = pl.to as string | undefined;
+            const from = pl.from as string | undefined;
+            const user = (pl.user as { id?: string; name?: string } | undefined) ?? {};
+            if (!to || to !== clientIdRef.current) return;
+            if (!from) return;
+            // cache peer info
+            peerInfoRef.current = {
+              ...(peerInfoRef.current || {}),
+              [from]: { id: user.id, name: user.name },
+            };
+            try {
+              pushToast(`User ${user.name || String(from).slice(0, 6)} joined the session`);
+            } catch (err) {
+              // ignore
+            }
+          } catch (err) {
+            // ignore
+          }
+        }
+      );
+
       // broadcast local yjs updates
       ydocRef.current.on("update", (update) => {
         channel.send({
@@ -870,14 +986,6 @@ export default function CodeEditor({
           payload: { update: Array.from(update) },
         });
       });
-
-      // No local fallback insert: we intentionally avoid seeding the shared
-      // document from the client when no remote state is present. The session
-      // authoritative row (`session.current_code`) or an originator-initiated
-      // language-accept flow should be used to set initial content. Removing
-      // the fallback avoids races where slow page loads cause duplicated
-      // snippets to appear when multiple clients (or the originator) also
-      // attempt inserts.
 
       channelRef.current = channel;
 
@@ -919,7 +1027,7 @@ export default function CodeEditor({
         // to initialise the editor language for all participant.
         const sessionLang =
           typeof session.current_language === "string" &&
-          session.current_language
+            session.current_language
             ? session.current_language
             : undefined;
         if (sessionLang) setSelectedLanguage(sessionLang);
@@ -927,10 +1035,10 @@ export default function CodeEditor({
         const questionSnippet =
           question?.codeSnippets && question.codeSnippets.length > 0
             ? // try a few common fields for snippet content
-              question.codeSnippets[0].code ||
-              question.codeSnippets[0].content ||
-              question.codeSnippets[0].snippet ||
-              ""
+            question.codeSnippets[0].code ||
+            question.codeSnippets[0].content ||
+            question.codeSnippets[0].snippet ||
+            ""
             : "";
 
         // If session has code use it. Otherwise, only use the question
@@ -1088,14 +1196,14 @@ export default function CodeEditor({
       tip.style.zIndex = "99999";
       tip.style.background = color || "#111827";
       tip.style.color = "white";
-  // reduce left padding so text sits closer to the left edge
-  tip.style.padding = "6px";
+      // reduce left padding so text sits closer to the left edge
+      tip.style.padding = "6px";
       tip.style.borderRadius = "12px";
       tip.style.fontSize = "12px";
       tip.style.pointerEvents = "none";
       tip.style.display = "flex";
       tip.style.alignItems = "center";
-  tip.style.gap = "0px";
+      tip.style.gap = "0px";
       tip.style.boxShadow = `0 6px 18px ${color || "#000000"}66`;
 
       const label = document.createElement("span");
@@ -1107,10 +1215,10 @@ export default function CodeEditor({
 
       document.body.appendChild(tip);
       const r = el.getBoundingClientRect();
-  // position to the right of the gutter marker, then clamp
-  const tipRect = tip.getBoundingClientRect();
-  // use a smaller offset so the tooltip sits closer to the gutter dot
-  let left = r.right + 2;
+      // position to the right of the gutter marker, then clamp
+      const tipRect = tip.getBoundingClientRect();
+      // use a smaller offset so the tooltip sits closer to the gutter dot
+      let left = r.right + 2;
       if (left + tipRect.width + 8 > window.innerWidth) left = window.innerWidth - tipRect.width - 8;
       if (left < 8) left = 8;
       tip.style.left = `${left}px`;
@@ -1192,7 +1300,7 @@ export default function CodeEditor({
               head: sel.head,
               ts: Date.now(),
             };
-            const cid = clientIdRef.current || `local-${Math.random().toString(36).slice(2,9)}`;
+            const cid = clientIdRef.current || `local-${Math.random().toString(36).slice(2, 9)}`;
             const userLabel = (user && (user.name || (user.email as string) || user.id)) || cid;
             // update local cache
             const map = {
@@ -1431,7 +1539,7 @@ export default function CodeEditor({
         <CodeEditorLanguageSelectionAndRunButton
           selectedLanguage={selectedLanguage ?? ""}
           setSelectedLanguage={setSelectedLanguage}
-          setCode={() => {}} // not used with Yjs
+          setCode={() => { }} // not used with Yjs
           availableLanguages={
             question?.codeSnippets?.map((s) => s.lang || s.language) || [
               "Python",
