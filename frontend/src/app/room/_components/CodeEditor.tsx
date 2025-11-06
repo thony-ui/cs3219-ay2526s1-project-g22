@@ -859,8 +859,16 @@ export default function CodeEditor({
             payload?.presence?.meta?.user?.name ||
             payload?.old?.meta?.name ||
             payload?.old?.meta?.user?.name;
-          // Never display raw ids as a fallback; prefer metaName or the literal 'User'
-          const name = metaName || "User";
+          // Prefer known display name sources in order:
+          // 1) if the leaving id matches the currently-displayed peer, use that name
+          // 2) any cached remote cursor entry for that client id (contains userName)
+          // 3) presence meta
+          // 4) literal 'User'
+          const cursorEntry = (remoteCursorsRef.current || {})[leftId || ""];
+          const name = (leftId && peerIdDisplayedRef.current && leftId === peerIdDisplayedRef.current && peerUsernameRef.current)
+            || (cursorEntry && cursorEntry.userName)
+            || metaName
+            || "User";
           console.log("realtime: peer left presence key:", leftId);
           // don't show a toast for our own disconnect
           if (leftId && String(leftId) === String(clientIdRef.current)) return;
