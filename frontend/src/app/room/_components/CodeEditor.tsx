@@ -692,7 +692,7 @@ export default function CodeEditor({
               incomingProposalRef.current = null;
               setIncomingProposal(null);
               pushToast(
-                `User ${getPeerName(from, String(from).slice(0, 6))} cancelled language change to ${lang || "<unknown>"}`
+                `User ${getPeerName(from, "User")} cancelled language change to ${lang || "<unknown>"}`
               );
             }
             // If the cancel targets our outgoing pending proposal, clear it
@@ -849,7 +849,8 @@ export default function CodeEditor({
             payload?.presence?.meta?.user?.name ||
             payload?.old?.meta?.name ||
             payload?.old?.meta?.user?.name;
-          const name = metaName || leftId || "User";
+          // Never display raw ids as a fallback; prefer metaName or the literal 'User'
+          const name = metaName || "User";
           console.log("realtime: peer left presence key:", leftId);
           // don't show a toast for our own disconnect
           if (leftId && String(leftId) === String(clientIdRef.current)) return;
@@ -981,7 +982,8 @@ export default function CodeEditor({
             // If we don't currently show a peer, adopt this one for the
             // header. If we already show a peer and this is the same id,
             // update the displayed name in case it changed.
-            const displayName = (user && (user.name || String(user.id))) || from;
+            // Only show a username or the literal string 'User' as fallback.
+            const displayName = (user && user.name) || "User";
             setPeerUsernameState((cur) => {
               if (!peerIdDisplayed) {
                 setPeerIdDisplayed(from);
