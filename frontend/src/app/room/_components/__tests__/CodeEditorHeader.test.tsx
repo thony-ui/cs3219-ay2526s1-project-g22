@@ -26,7 +26,7 @@ describe("CodeEditorHeader", () => {
   it("renders user ID correctly", () => {
     render(<CodeEditorHeader {...defaultProps} />);
 
-  expect(screen.getByText(/Online:/)).toBeInTheDocument();
+    expect(screen.getByText(/Online:/)).toBeInTheDocument();
     expect(screen.getByText("user-456 (You)")).toBeInTheDocument();
     expect(screen.getByText("peer-123")).toBeInTheDocument();
   });

@@ -120,8 +120,9 @@ export default function CodeEditor({
 
   // Remote cursors map: clientId -> { anchor, head, userName?, color, ts }
   const remoteCursorsRef = useRef<Record<string, any>>({});
-  // peer info cache: clientId -> { id?: userId, name?: displayName }
-  const peerInfoRef = useRef<Record<string, { id?: string; name?: string }>>({});
+  // NOTE: peer info caching via ref was removed in favor of explicit React
+  // state (`peerUsernameState` / `peerIdDisplayed`) which drives header
+  // re-renders. This avoids stale header display when peers leave.
   // Visible peer display state: keep in React state so header updates when
   // peers join/leave. We also remember which peer id is currently shown.
   const [peerUsernameState, setPeerUsernameState] = useState<string | undefined>(
@@ -133,9 +134,9 @@ export default function CodeEditor({
 
   const getPeerName = (id?: string, fallback?: string) => {
     if (!id) return fallback;
-    const cached = peerInfoRef.current?.[id];
-    if (cached && cached.name) return cached.name;
-    // fallback to short id if provided
+    // If the id matches the currently displayed peer, return the tracked name
+    if (peerIdDisplayed && id === peerIdDisplayed && peerUsernameState)
+      return peerUsernameState;
     return fallback;
   };
 
@@ -842,44 +843,22 @@ export default function CodeEditor({
           console.log("realtime: presence.leave payload:", payload);
           // common shapes: payload.key or payload.presence or payload.old
           const leftId = payload?.key || payload?.presence?.key || payload?.old?.key || payload?.old?.new?.key;
-          // Prefer cached peer info if we've already queried them
-          const cached = leftId ? peerInfoRef.current?.[leftId] : undefined;
           // try to find a friendly name in presence meta as fallback
           const metaName =
             payload?.presence?.meta?.name ||
             payload?.presence?.meta?.user?.name ||
             payload?.old?.meta?.name ||
             payload?.old?.meta?.user?.name;
-          const name = cached?.name || metaName || leftId || "User";
+          const name = metaName || leftId || "User";
           console.log("realtime: peer left presence key:", leftId);
           // don't show a toast for our own disconnect
           if (leftId && String(leftId) === String(clientIdRef.current)) return;
 
-          // Remove from cached peer info
-          if (leftId && peerInfoRef.current && peerInfoRef.current[leftId]) {
-            try {
-              // delete from cache
-              const copy = { ...(peerInfoRef.current || {}) };
-              delete copy[leftId];
-              peerInfoRef.current = copy;
-            } catch (err) {
-              // ignore
-            }
-          }
-
           // If the peer that left is the one currently shown in the header,
-          // clear it or rotate to another available peer.
+          // clear the displayed peer so the header no longer shows a departed user.
           if (leftId && peerIdDisplayed && String(leftId) === String(peerIdDisplayed)) {
-            const remaining = Object.keys(peerInfoRef.current || {}).filter((k) => k !== clientIdRef.current);
-            if (remaining.length > 0) {
-              const next = remaining[0];
-              const nextName = peerInfoRef.current[next]?.name || next;
-              setPeerIdDisplayed(next);
-              setPeerUsernameState(nextName);
-            } else {
-              setPeerIdDisplayed(undefined);
-              setPeerUsernameState(undefined);
-            }
+            setPeerIdDisplayed(undefined);
+            setPeerUsernameState(undefined);
           }
 
           try {
@@ -999,12 +978,6 @@ export default function CodeEditor({
             const user = (pl.user as { id?: string; name?: string } | undefined) ?? {};
             if (!to || to !== clientIdRef.current) return;
             if (!from) return;
-            // cache peer info
-            peerInfoRef.current = {
-              ...(peerInfoRef.current || {}),
-              [from]: { id: user.id, name: user.name },
-            };
-
             // If we don't currently show a peer, adopt this one for the
             // header. If we already show a peer and this is the same id,
             // update the displayed name in case it changed.
