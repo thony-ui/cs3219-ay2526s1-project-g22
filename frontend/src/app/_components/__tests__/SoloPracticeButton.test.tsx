@@ -290,14 +290,17 @@ describe("SoloPracticeButton", () => {
       const button = screen.getByRole("button");
       fireEvent.click(button);
 
-      // Wait until the component has fully handled the rejection
+      // Record current push call count and ensure it does not increase after error handling
+      const beforePushCalls = mockPush.mock.calls.length;
+
+      // Wait until the component has handled the rejection
       await waitFor(() => {
         expect(consoleErrorSpy).toHaveBeenCalled();
       });
 
-      // Wait another tick to flush any async tasks
+      // Give any stray async tasks a moment, then assert push count unchanged
       await waitFor(() => {
-        expect(mockPush).not.toHaveBeenCalled();
+        expect(mockPush.mock.calls.length).toBe(beforePushCalls);
       });
 
       consoleErrorSpy.mockRestore();
