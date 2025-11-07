@@ -14,6 +14,7 @@ const allowedOrigins = [
   process.env.ALLOWED_ORIGIN_DEVELOPMENT,
   process.env.ALLOWED_ORIGIN_PRODUCTION,
   process.env.ALLOWED_API_GATEWAY_ORIGIN,
+  process.env.API_DOCS,
 ].filter(Boolean) as string[];
 
 app.use(
@@ -35,10 +36,8 @@ const services: Record<string, string> = {
     process.env.QUESTION_SERVICE_URL || "http://localhost:6002",
   "matching-service":
     process.env.MATCHING_SERVICE_URL || "http://localhost:6006",
-  "chat-service":
-    process.env.CHAT_SERVICE_URL || "http://localhost:6010",
-  "ai-service":
-    process.env.AI_SERVICE_URL || "http://localhost:6020",
+  "chat-service": process.env.CHAT_SERVICE_URL || "http://localhost:6010",
+  "ai-service": process.env.AI_SERVICE_URL || "http://localhost:6020",
 };
 
 // Simple request log
