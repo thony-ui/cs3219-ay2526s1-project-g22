@@ -328,35 +328,34 @@ graph LR
         Trigger1[Push to Branch]
         Build1[Build Services<br/>npm ci]
         Test1[Run Tests<br/>Jest]
-        Lint1[Lint Code<br/>ESLint]
         Docker1[Build Docker Images]
     end
 
     subgraph "CI Pipeline - Frontend"
         Trigger2[Push to Branch]
-        Build2[Build Next.js<br/>npm run build]
         Test2[Run Tests]
         Deploy[Deploy to Vercel]
     end
 
-    subgraph "Planned CD Pipeline"
-        Push[Push Docker Images<br/>to ECR/Docker Hub]
+    subgraph "CD Pipeline - Backend"
+        Push[Push Docker Images<br/>to AWS ECR]
         Deploy2[Deploy to AWS<br/>Elastic Beanstalk]
-        Health[Health Checks]
+        Health[Health Checks<br/>& Monitoring]
     end
 
     GitHub -->|Webhook| Trigger1
     GitHub -->|Webhook| Trigger2
 
-    Trigger1 --> Build1 --> Test1 --> Lint1 --> Docker1
-    Trigger2 --> Build2 --> Test2 --> Deploy
+    Trigger1 --> Build1 --> Test1 --> Docker1
+    Trigger2 --> Test2 --> Deploy
 
-    Docker1 -.->|Future| Push
-    Push -.->|Future| Deploy2
-    Deploy2 -.->|Future| Health
+    Docker1 --> Push
+    Push --> Deploy2
+    Deploy2 --> Health
 
     style Deploy fill:#4CAF50
-    style Deploy2 fill:#FF9800
+    style Deploy2 fill:#4CAF50
+    style Health fill:#4CAF50
 ```
 
 **Current CI/CD Status:**
@@ -374,15 +373,18 @@ graph LR
 graph TB
     subgraph "Production Environment - AWS"
         subgraph "Elastic Beanstalk"
-            EB1[API Gateway<br/>Docker Container]
-            EB2[User Service<br/>Docker Container]
-            EB3[Question Service<br/>Docker Container]
-            EB4[Matching Service<br/>Docker Container]
-            EB5[Collaboration Service<br/>Docker Container]
+            EB1[API Gateway<br/>Docker Container<br/>Port: 8000]
+            EB2[User Service<br/>Docker Container<br/>Port: 6001]
+            EB3[Question Service<br/>Docker Container<br/>Port: 6002]
+            EB4[Matching Service<br/>Docker Container<br/>Port: 6006]
+            EB5[Collaboration Service<br/>Docker Container<br/>Port: 6004]
+            EB6[History Service<br/>Docker Container<br/>Port: 6005]
+            EB7[Chat Service<br/>Docker Container<br/>Port: 6010]
+            EB8[AI Service<br/>Docker Container<br/>Port: 6020]
         end
 
         subgraph "Load Balancer"
-            ALB[Application Load Balancer]
+            ALB[Application Load Balancer<br/>HTTPS: 443]
         end
 
         subgraph "Container Registry"
@@ -392,32 +394,59 @@ graph TB
 
     subgraph "External Services"
         Vercel[Vercel<br/>Next.js Frontend]
-        MongoDB[MongoDB Atlas]
-        Supabase[Supabase Cloud]
-        Redis[Redis Cloud]
+        MongoDB[MongoDB Atlas<br/>Question Database]
+        Supabase[Supabase Cloud<br/>]
+        Redis[Redis Cloud<br/>Cache Layer]
+        OpenRouter[OpenRouter API<br/>DeepSeek Model]
+        Piston[Piston API<br/>Code Execution Engine]
     end
 
     Users[End Users] -->|HTTPS| Vercel
     Vercel -->|API Calls| ALB
+    Vercel -->|Direct API Call| Piston
     ALB --> EB1
+
     EB1 --> EB2
     EB1 --> EB3
     EB1 --> EB4
     EB1 --> EB5
+    EB1 --> EB6
+    EB1 -->|WebSocket Upgrade| EB7
+    EB1 --> EB8
 
     ECR -.->|Pull Images| EB1
     ECR -.->|Pull Images| EB2
     ECR -.->|Pull Images| EB3
     ECR -.->|Pull Images| EB4
     ECR -.->|Pull Images| EB5
+    ECR -.->|Pull Images| EB6
+    ECR -.->|Pull Images| EB7
+    ECR -.->|Pull Images| EB8
 
-    EB2 -->|Query| Supabase
-    EB3 -->|Query| MongoDB
-    EB4 -->|Queue| Redis
+    EB2 -->|SQL Queries| Supabase
+    EB3 -->|NoSQL Queries| MongoDB
+    EB4 -->|Cache Operations| Redis
     EB5 -->|WebSocket| Supabase
+    EB6 -->|SQL Queries| Supabase
+    EB7 -->|Cache Operations| Redis
+    EB8 -->|HTTPS API Call| OpenRouter
+    EB8 -->|Fetch Context| Supabase
 
-    style Vercel fill:#4CAF50
-    style ALB fill:#FF9800
+    style Vercel fill:#4CAF50,stroke:#333,color:#000
+    style ALB fill:#FF9800,stroke:#333,color:#000
+    style EB1 fill:#2196F3,stroke:#333,color:#fff
+    style EB2 fill:#9E9E9E,stroke:#333,color:#fff
+    style EB3 fill:#9E9E9E,stroke:#333,color:#fff
+    style EB4 fill:#9E9E9E,stroke:#333,color:#fff
+    style EB5 fill:#9E9E9E,stroke:#333,color:#fff
+    style EB6 fill:#9E9E9E,stroke:#333,color:#fff
+    style EB7 fill:#9C27B0,stroke:#333,color:#fff
+    style EB8 fill:#E91E63,stroke:#333,color:#fff
+    style MongoDB fill:#47A248,stroke:#333,color:#fff
+    style Supabase fill:#3ECF8E,stroke:#333,color:#000
+    style Redis fill:#DC382D,stroke:#333,color:#fff
+    style OpenRouter fill:#00A67E,stroke:#333,color:#fff
+    style Piston fill:#9B59B6,stroke:#333,color:#fff
 ```
 
 **Why AWS Elastic Beanstalk?**
