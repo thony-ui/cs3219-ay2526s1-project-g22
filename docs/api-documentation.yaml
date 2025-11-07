@@ -22,12 +22,12 @@ info:
   version: 1.0.0
   contact:
     name: CS3219 Project G22
-    url: https://github.com/CS3219-AY2526S1/cs3219-ay2526s1-project-g22
+    url: https://github.com/thony-ui/cs3219-ay2526s1-project-g22
 
 servers:
   - url: http://localhost:8000
     description: Local Development (API Gateway)
-  - url: https://peerprep-backend.ap-southeast-1.elasticbeanstalk.com
+  - url: https://peer-prep-service.com/ 
     description: Production (AWS Elastic Beanstalk)
 
 tags:
