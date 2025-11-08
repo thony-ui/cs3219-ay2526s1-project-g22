@@ -1212,7 +1212,7 @@ export default function CodeEditor({
         // participant) or the session is completed, redirect to home.
         try {
           // axios errors expose `response.status`
-          const err = e as any;
+          const err = e as { response?: { status?: number } };
           const status = err?.response?.status;
           if (status === 401 || status === 403 || status === 410) {
             router.push("/");
