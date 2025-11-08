@@ -1151,6 +1151,14 @@ export default function CodeEditor({
         );
         if (resp.status !== 200) throw new Error(`Session fetch failed`);
         const session = resp.data;
+        // If backend allowed a completed session through for any reason,
+        // redirect to home. We also defensively handle forbidden/unauth access
+        // via the catch block below.
+        if (session?.status === "completed") {
+          // redirect user to home page
+          router.push("/");
+          return;
+        }
         if (aborted) return;
         // Prefer session.current_code if present. Otherwise fall back to the
         // first code snippet attached to the question (if any).
@@ -1200,6 +1208,19 @@ export default function CodeEditor({
           );
         }
       } catch (e: unknown) {
+        // If the request was blocked due to authorization (user not a
+        // participant) or the session is completed, redirect to home.
+        try {
+          // axios errors expose `response.status`
+          const err = e as any;
+          const status = err?.response?.status;
+          if (status === 401 || status === 403 || status === 410) {
+            router.push("/");
+            return;
+          }
+        } catch (inner) {
+          // ignore
+        }
         console.log(`Error: ${e instanceof Error ? e.message : e}`);
       }
     }
@@ -1351,6 +1372,10 @@ export default function CodeEditor({
       const r = el.getBoundingClientRect();
       // position to the right of the gutter marker, then clamp
       const tipRect = tip.getBoundingClientRect();
+
+
+
+      
       // use a smaller offset so the tooltip sits closer to the gutter dot
       let left = r.right + 2;
       if (left + tipRect.width + 8 > window.innerWidth) left = window.innerWidth - tipRect.width - 8;
