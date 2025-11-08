@@ -249,6 +249,16 @@ describe("Sessions Routes - Unit Tests", () => {
         mockSession
       );
 
+      // Ensure the mocked authentication middleware sets the current user
+      // to one of the session participants so the request is authorized.
+      const { authenticateUser } = require("../authorization");
+      (authenticateUser as jest.Mock).mockImplementation(
+        (req: Request, res: Response, next: NextFunction) => {
+          req.user = { id: mockSession.interviewee_id };
+          next();
+        }
+      );
+
       const response = await request(app).get("/sessions/session-123");
 
       expect(response.status).toBe(200);

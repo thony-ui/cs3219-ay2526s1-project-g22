@@ -150,7 +150,7 @@ export default function ChatPanel({
                 } ${isDeleting ? "opacity-50" : ""}`}
               >
                 <div className="text-xs text-slate-200 opacity-80 mb-1 flex items-center gap-2">
-                  <span>{mine ? "You" : m.sender_id}</span>
+                  <span>{mine ? "You" : "Peer"}</span>
                   {/* Delete link - only show on hover for own messages */}
                   {mine && hoveredMessageId === m.id && !isDeleting && (
                     <button

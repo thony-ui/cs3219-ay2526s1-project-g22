@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import CodeEditor from "../_components/CodeEditor";
 import ChatPanel from "../_components/ChatPanel";
@@ -15,6 +16,7 @@ export default function RoomPage({
   params: Promise<{ roomId: string }>;
 }) {
   const { roomId } = React.use(params);
+  const router = useRouter();
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [question, setQuestion] = useState<any>(null);
   const { user } = useUser();
@@ -47,6 +49,14 @@ export default function RoomPage({
         }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
+        // If backend returns 401/403/404/410 (unauthorized/forbidden/not found/gone)
+        // redirect to home so users cannot access a non-existent session.
+        const status = err?.response?.status;
+        if (status === 401 || status === 403 || status === 404 || status === 410) {
+          router.push("/");
+          return;
+        }
+
         setError(err.message || "Failed to load question");
       } finally {
         setLoading(false);
