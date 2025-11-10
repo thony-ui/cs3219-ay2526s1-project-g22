@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 01 Oct 2025
+Scope: Helped implement several functions to meet team's requirements and simplified code through by refactoring. Also added comments to help
+Author review: I checked correctness, and refined unclear implementatio and did a bit of debugging of minor issues.
+*/
 import { Request, Response } from "express";
 import { matchingService } from "./matching.service";
 import { logger } from "../utils/logger";

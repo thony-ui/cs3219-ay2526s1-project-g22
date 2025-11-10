@@ -18,3 +18,5 @@ export-all-questions.js
 export-id-content.js
 questions-id-content.json
 all-questions.json
+# AI Assistance Documentation
+AI_ASSISTANCE_DISCLOSURE.md

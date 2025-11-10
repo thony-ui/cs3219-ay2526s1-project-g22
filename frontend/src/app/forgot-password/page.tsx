@@ -5,6 +5,12 @@ import { Button } from "../../components/ui/button";
 import { Label } from "../../components/ui/label";
 import { createClient } from "../../lib/supabase/supabase-client";
 import { getURL } from "../../utils/url-helper";
+/*
+AI Assistance Disclosure:
+Tool: Claude Sonnet 4.5, date: 2025-09-18
+Scope: Reviewed the code, found potential small bugs, and suggested small fixes to avoid runtime issues.
+Author review: I verified correctness of the modifications by AI against requirements. I fixed minor problems and tested the UI interactions to ensure they behave correctly.
+*/
 
 export default function ForgotPasswordPage() {
   const supabase = createClient();

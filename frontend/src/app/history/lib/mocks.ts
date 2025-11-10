@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini
+Date: 2025-11-02
+Scope: Generated mock data for testing based on sample requirements provided by the user.
+Author review: I verified correctness of the modifications by AI against requirements.
+*/
 export const mockdata = [
   {
     id: "7d9b5c1f-7938-44a8-a514-63e7b282c4c5",

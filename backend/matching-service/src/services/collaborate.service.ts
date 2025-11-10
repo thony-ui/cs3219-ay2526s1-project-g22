@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 01 Oct 2025
+Scope: Helped implement several functions and simplified code and added comments.
+Author review: I checked correctness, executed tests, and refined unclear implementations while debugging minor issues.
+*/
 import * as jwt from 'jsonwebtoken';
 
 export class ApiError extends Error {

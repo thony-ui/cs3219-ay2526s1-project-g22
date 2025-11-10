@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Gemini 2.5 Flash, date: 2025-09-16
+Scope: Helped debug issues discovered during testing, then updated the code to fix them.
+Author review: I verified correctness of the modifications by AI against requirements. I fixed minor issues, improved clarity, and ran checks to confirm the UI works as expected.
+*/
 "use client";
 
 import type React from "react";

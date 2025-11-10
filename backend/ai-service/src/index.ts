@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Gemini 2.5 Flash, date: 10 Oct 2025
+Scope: Helped implement several functions to meet the team's requirements and provided focused cleanups and clarifying comments.
+Author review: I validated behavior by running tests where applicable, simplified unclear code, and fixed small implementation issues.
+*/
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";

@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 2025-09-20
+Scope: Refactored code to reduce clutter.
+Author review: I verified correctness of the modifications by AI against requirements. I fixed small untidy implementations, debugged the UI
+*/
 "use client"
 
 import * as React from "react"

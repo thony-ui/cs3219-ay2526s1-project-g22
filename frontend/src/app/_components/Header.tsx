@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: Deepseek R1
+Date: 2025-09-22
+Scope: Reviewed the code structure and caught a few minor issues, then suggested small improvements.
+Author review: I verified correctness of the modifications by AI against requirements — I debugged UI styling and confirmed the component renders correctly.
+*/
 "use client";
 
 import { Button } from "@/components/ui/button";

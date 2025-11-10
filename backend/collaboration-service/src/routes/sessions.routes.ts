@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Claude Sonnet 4.5, date: 15 Oct 2025
+Scope: Assisted with debugging using debug and test findings, fixed code to work correctly, and tidied up sections with small refactors. Also suggested tests for relevant edge cases.
+Author review: I verified behavior and ran tests, clarified the code, and fixed small implementation issues.
+*/
 import { Router, Request, Response } from "express";
 import {
   createSession,

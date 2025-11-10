@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Gemini 2.5 Flash, date: 12 Oct 2025
+Scope: Proposed tests for edge cases specified.
+Author review: I validated correctness by running the tests, clarified assertions where needed, and fixed small issues discovered during testing.
+*/
 import {
   getQuestionsService,
   getRandomQuestionService,

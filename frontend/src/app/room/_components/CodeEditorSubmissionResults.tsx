@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini
+Date: 2025-10-21
+Scope: Assisted implementing some parts of HTML.
+Author review: I verified correctness of the modifications by AI against requirements adn tested it
+*/
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import React from "react";
 

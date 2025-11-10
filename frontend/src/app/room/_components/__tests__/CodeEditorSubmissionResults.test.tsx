@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini
+Date: 2025-10-21
+Scope: Suggested tests covering edge cases highlighted by the user.
+Author review: I verified correctness of the modifications by AI against requirements and modified several test cases slightly
+*/
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { render, screen } from "@testing-library/react";
 import CodeEditorSubmissionResults from "../CodeEditorSubmissionResults";

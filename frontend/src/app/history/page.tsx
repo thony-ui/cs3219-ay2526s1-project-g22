@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini
+Date: 2025-11-09
+Scope: Reviewed the code, found potential small bugs, and suggested small fixes to avoid runtime issues.
+Author review: I verified correctness of the modifications by AI against requirements.
+*/
 "use client";
 
 import { useEffect, useState } from "react";

@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 18 Sep 2025
+Scope: Refactored small sections for clarity and added inline comments to simplify maintenance and readability.
+Author review: I checked correctness, tested and clarified intent in code comments.
+*/
 // src/gateway.ts
 import express from "express";
 import * as http from "http";

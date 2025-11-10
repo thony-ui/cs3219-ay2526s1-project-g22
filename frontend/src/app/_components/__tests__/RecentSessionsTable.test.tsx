@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: Deepseek R1
+Date: 2025-09-22
+Scope: Suggested tests based on edge cases identified by the user.
+Author review: I verified correctness of the modifications by AI against requirements — I validated the test scenarios and confirmed they exercise the component correctly.
+*/
 import { render, screen } from "@testing-library/react";
 import RecentSessionsTable from "../RecentSessionsTable";
 import { HistoryData } from "@/app/history/types/HistoryData";
