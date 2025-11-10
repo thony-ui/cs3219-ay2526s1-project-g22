@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Github Copilot, date: 2025-09-25
+Scope: Suggested tests covering a few edge cases specified by the user.
+Author review: I verified correctness of the modifications by AI against requirements. I resolved small issues, debugged UI interactions, and verified changes locally.
+*/
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { PreferenceModal } from "../PreferenceModal";
 

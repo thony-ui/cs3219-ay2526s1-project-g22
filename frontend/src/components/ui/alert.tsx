@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 2025-09-20
+Scope: Refactored code to reduce clutter
+Author review: I verified correctness of the modifications by AI against requirements.
+*/
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 

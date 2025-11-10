@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Github Copilot, date: 16 Sep 2025
+Scope: Generated boilerplate for this file from the team's requirements and guidance. 
+Author review: I validated correctness against the team's requirements, ran tests.
+*/
 import type { Request, Response, NextFunction } from "express";
 import { UserController } from "../domain/user.controller";
 import { UserRepository } from "../domain/user.repository";

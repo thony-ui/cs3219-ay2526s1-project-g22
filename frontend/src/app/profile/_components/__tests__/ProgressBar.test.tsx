@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: Deepseek R1
+Date: 2025-09-19
+Scope: Suggested tests based on a few edge cases specified by the user.
+Author review: I verified correctness of the modifications by AI against requirements. I validated the tests and ensured they cover the component behavior correctly.
+*/
 import { render, screen } from "@testing-library/react";
 import ProgressBar from "../ProgressBar";
 

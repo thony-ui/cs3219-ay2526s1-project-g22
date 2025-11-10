@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 01 Oct 2025
+Scope: Helped implement several functions to meet requirements and simplified code through refactoring and added clarifying comments. 
+Author review: I checked correctness, executed tests, and refined unclear implementations while debugging minor issues.
+*/
 import Redis from 'ioredis';
 import config from '../config';
 import { logger } from '../utils/logger';

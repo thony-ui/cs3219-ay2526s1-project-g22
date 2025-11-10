@@ -6,3 +6,5 @@ dump.rdb
 /dist/
 /logs/
 /.cache/
+# AI Assistance Documentation
+AI_ASSISTANCE_DISCLOSURE.md

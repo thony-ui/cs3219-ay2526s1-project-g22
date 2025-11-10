@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Claude Haiku, date: 30 Oct 2025
+Scope: Helped debug issues reported during testing, corrected small faults, and made minor refactors to improve clarity and robustness.
+Author review: I validated behavior by running tests where relevant, clarified confusing parts, and fixed small implementation issues.
+*/
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";

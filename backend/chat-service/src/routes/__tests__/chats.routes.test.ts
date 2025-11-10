@@ -1,7 +1,9 @@
-/**
- * Integration tests for chats.routes using supertest.
- * We'll mock the authentication middleware and the chats.service functions.
- */
+/*
+AI Assistance Disclosure:
+Tool: Claude Haiku, date: 30 Oct 2025
+Scope: Helped debug issues reported during testing, corrected small faults for the tests.
+*/
+
 process.env.SECRET_KEY = "test-secret";
 process.env.SUPABASE_URL = "https://test.supabase.co";
 process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";

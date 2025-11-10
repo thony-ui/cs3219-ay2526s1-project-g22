@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 01 Oct 2025
+Scope: Helped implement several functions 
+Author review: I checked correctness, and ran tests and did a bit of debugging of minor issues.
+*/
 // Mock all dependencies before imports
 jest.mock("../../services/redis.service", () => ({
   redisService: {

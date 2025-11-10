@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Github Copilot, date: 16 Sep 2025
+Scope: Generated boilerplate for this file from the team's requirements and guidance. 
+Author review: I validated correctness against the team's requirements, and then used this to run tests whch worked.
+*/
 // Global Jest setup file that runs before all tests
 // This file is referenced in jest.config.js setupFilesAfterEnv
 

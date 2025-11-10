@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 2025-09-20
+Scope: Suggested tests covering a few edge cases specified by the user.
+Author review: I verified correctness of the modifications by AI against requirements  and resolved minor test failures.
+*/
 import { render, screen } from "@testing-library/react";
 import { Alert, AlertTitle, AlertDescription } from "../alert";
 

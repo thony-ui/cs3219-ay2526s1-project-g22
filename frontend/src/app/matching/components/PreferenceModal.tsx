@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Github Copilot, date: 2025-09-25
+Scope: Reviewed the code and identified a few potential bugs, then suggested small fixes.
+Author review: I verified correctness of the modifications by AI against requirements. I resolved small issues, debugged UI interactions, and verified changes locally.
+*/
 "use client";
 
 import { useEffect, useRef, useState } from "react";

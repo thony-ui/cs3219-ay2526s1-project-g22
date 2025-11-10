@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Gemini 2.5 Flash, date: 10 Oct 2025
+Scope: Helped implement several functions and clarifying comments.
+Author review: I validated correctness and simplicity, and fixed small implementation issues.
+*/
 export interface ChatMessage {
   role: "system" | "user" | "assistant";
   content: string;

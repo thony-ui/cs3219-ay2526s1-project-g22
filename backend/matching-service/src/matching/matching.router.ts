@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 01 Oct 2025
+Scope: Helped implement several lines based on provided requirements 
+Author review: I checked correctness against other files that it interacts with, and tested and debugged.
+*/
 import { Router } from 'express';
 import { matchingController } from './matching.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
