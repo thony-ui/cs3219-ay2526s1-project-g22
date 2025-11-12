@@ -198,22 +198,46 @@ export default function CodeEditor({
       update(decos, tr) {
         // First, map decorations through document changes to adjust positions
         if (tr.docChanged) {
-          decos = decos.map(tr.changes);
+          try {
+            decos = decos.map(tr.changes);
+          } catch (err) {
+            // If mapping fails, clear decorations and rebuild from current state
+            decos = Decoration.none;
+          }
           
           // Also update the underlying cursor positions in remoteCursorsRef
           // so they stay in sync with the document changes
           const updatedCursors: Record<string, RemoteCursor> = {};
+          const docLength = tr.state.doc.length;
           Object.keys(remoteCursorsRef.current || {}).forEach((cid) => {
             const c = remoteCursorsRef.current[cid];
             if (c && typeof c.head === "number") {
-              // Map cursor positions through the document changes
-              const newHead = tr.changes.mapPos(c.head);
-              const newAnchor = typeof c.anchor === "number" ? tr.changes.mapPos(c.anchor) : newHead;
-              updatedCursors[cid] = {
-                ...c,
-                head: newHead,
-                anchor: newAnchor,
-              };
+              try {
+                // Clamp positions to valid range before mapping to prevent out-of-range errors
+                const clampedHead = Math.max(0, Math.min(c.head, docLength));
+                const clampedAnchor = typeof c.anchor === "number" 
+                  ? Math.max(0, Math.min(c.anchor, docLength)) 
+                  : clampedHead;
+                
+                // Map cursor positions through the document changes
+                const newHead = tr.changes.mapPos(clampedHead, 1);
+                const newAnchor = tr.changes.mapPos(clampedAnchor, 1);
+                
+                updatedCursors[cid] = {
+                  ...c,
+                  head: Math.max(0, Math.min(newHead, docLength)),
+                  anchor: Math.max(0, Math.min(newAnchor, docLength)),
+                };
+              } catch (err) {
+                // If mapping fails, clamp to document bounds
+                updatedCursors[cid] = {
+                  ...c,
+                  head: Math.max(0, Math.min(c.head, docLength)),
+                  anchor: typeof c.anchor === "number" 
+                    ? Math.max(0, Math.min(c.anchor, docLength)) 
+                    : Math.max(0, Math.min(c.head, docLength)),
+                };
+              }
             }
           });
           remoteCursorsRef.current = updatedCursors;
@@ -296,7 +320,12 @@ export default function CodeEditor({
       update(markers, tr) {
         // map markers through document changes first
         if (tr.docChanged) {
-          markers = markers.map(tr.changes);
+          try {
+            markers = markers.map(tr.changes);
+          } catch (err) {
+            // If mapping fails, clear markers and rebuild from current state
+            markers = RangeSet.empty as unknown as RangeSet<GutterMarker>;
+          }
         }
         
         for (const e of tr.effects) {
@@ -309,39 +338,43 @@ export default function CodeEditor({
               const c = cursors[cid];
               if (!c || typeof c.head !== "number") return;
               const head = Math.max(0, Math.min(doc.length, c.head));
-              const line = tr.state.doc.lineAt(head);
-              class RemoteGutterMarker extends GutterMarker {
-                color: string;
-                baseLabel: string;
-                isSelf: boolean;
-                constructor(color: string, label: string, isSelf = false) {
-                  super();
-                  this.color = color;
-                  this.baseLabel = label;
-                  this.isSelf = isSelf;
-                  this.elementClass = "cm-remote-gutter-marker";
+              try {
+                const line = tr.state.doc.lineAt(head);
+                class RemoteGutterMarker extends GutterMarker {
+                  color: string;
+                  baseLabel: string;
+                  isSelf: boolean;
+                  constructor(color: string, label: string, isSelf = false) {
+                    super();
+                    this.color = color;
+                    this.baseLabel = label;
+                    this.isSelf = isSelf;
+                    this.elementClass = "cm-remote-gutter-marker";
+                  }
+                  toDOM(view?: EditorView) {
+                    const el = document.createElement("div");
+                    el.className = "cm-remote-gutter-dot";
+                    const label = this.baseLabel || "";
+                    const displayLabel = label + (this.isSelf ? " (You)" : "");
+                    el.title = displayLabel;
+                    // expose username and color as data attributes for tooltip handlers
+                    el.dataset.username = displayLabel;
+                    el.dataset.color = this.color;
+                    el.style.width = "10px";
+                    el.style.height = "10px";
+                    el.style.borderRadius = "50%";
+                    el.style.background = this.color;
+                    // remove horizontal margin so tooltip sits flush next to the gutter dot
+                    el.style.margin = "4px 0";
+                    el.style.boxShadow = `0 0 6px ${this.color}66`;
+                    return el;
+                  }
                 }
-                toDOM(view?: EditorView) {
-                  const el = document.createElement("div");
-                  el.className = "cm-remote-gutter-dot";
-                  const label = this.baseLabel || "";
-                  const displayLabel = label + (this.isSelf ? " (You)" : "");
-                  el.title = displayLabel;
-                  // expose username and color as data attributes for tooltip handlers
-                  el.dataset.username = displayLabel;
-                  el.dataset.color = this.color;
-                  el.style.width = "10px";
-                  el.style.height = "10px";
-                  el.style.borderRadius = "50%";
-                  el.style.background = this.color;
-                  // remove horizontal margin so tooltip sits flush next to the gutter dot
-                  el.style.margin = "4px 0";
-                  el.style.boxShadow = `0 0 6px ${this.color}66`;
-                  return el;
-                }
+                const marker = new RemoteGutterMarker(String(c.color || ""), String(c.userName || cid), cid === clientIdRef.current);
+                byLine.push(marker.range(line.from));
+              } catch (err) {
+                // Skip this marker if lineAt fails
               }
-              const marker = new RemoteGutterMarker(String(c.color || ""), String(c.userName || cid), cid === clientIdRef.current);
-              byLine.push(marker.range(line.from));
             });
             markers = RangeSet.of(byLine as readonly GutterRange[], true) as unknown as RangeSet<GutterMarker>;
           }
@@ -626,11 +659,21 @@ export default function CodeEditor({
             const sel = (pl.selection as { anchor: number; head: number } | undefined) || pl;
             const userMeta = (pl.user as Record<string, unknown>) || {};
             if (!cid || cid === clientIdRef.current) return;
+            
+            // Get current document length to clamp cursor positions
+            const docLength = editorViewRef.current?.state?.doc?.length ?? 0;
+            const rawHead = typeof sel.head === "number" ? sel.head : 0;
+            const rawAnchor = typeof sel.anchor === "number" ? sel.anchor : rawHead;
+            
+            // Clamp positions to valid document range
+            const clampedHead = Math.max(0, Math.min(rawHead, docLength));
+            const clampedAnchor = Math.max(0, Math.min(rawAnchor, docLength));
+            
             const map = {
               ...(remoteCursorsRef.current || {}),
               [cid]: {
-                anchor: typeof sel.anchor === "number" ? sel.anchor : 0,
-                head: typeof sel.head === "number" ? sel.head : 0,
+                anchor: clampedAnchor,
+                head: clampedHead,
                 userName: String((userMeta as Record<string, unknown>)['name'] ?? cid),
                 color: pickColor(cid),
                 ts: typeof pl.ts === "number" ? pl.ts : Date.now(),
