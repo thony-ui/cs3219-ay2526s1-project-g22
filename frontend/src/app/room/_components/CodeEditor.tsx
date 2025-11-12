@@ -196,6 +196,29 @@ export default function CodeEditor({
         return Decoration.none;
       },
       update(decos, tr) {
+        // First, map decorations through document changes to adjust positions
+        if (tr.docChanged) {
+          decos = decos.map(tr.changes);
+          
+          // Also update the underlying cursor positions in remoteCursorsRef
+          // so they stay in sync with the document changes
+          const updatedCursors: Record<string, RemoteCursor> = {};
+          Object.keys(remoteCursorsRef.current || {}).forEach((cid) => {
+            const c = remoteCursorsRef.current[cid];
+            if (c && typeof c.head === "number") {
+              // Map cursor positions through the document changes
+              const newHead = tr.changes.mapPos(c.head);
+              const newAnchor = typeof c.anchor === "number" ? tr.changes.mapPos(c.anchor) : newHead;
+              updatedCursors[cid] = {
+                ...c,
+                head: newHead,
+                anchor: newAnchor,
+              };
+            }
+          });
+          remoteCursorsRef.current = updatedCursors;
+        }
+        
         for (const e of tr.effects) {
           if (e.is(setRemoteCursorsEffect)) {
             const cursors = e.value ?? {};
@@ -257,8 +280,6 @@ export default function CodeEditor({
             decos = set;
           }
         }
-        // map decorations through document changes
-        decos = decos.map(tr.changes);
         return decos;
       },
       provide: f => EditorView.decorations.from(f),
@@ -273,8 +294,11 @@ export default function CodeEditor({
         return RangeSet.empty as unknown as RangeSet<GutterMarker>;
       },
       update(markers, tr) {
-        // map markers through document changes
-        markers = markers.map(tr.changes);
+        // map markers through document changes first
+        if (tr.docChanged) {
+          markers = markers.map(tr.changes);
+        }
+        
         for (const e of tr.effects) {
           if (e.is(setRemoteGutterEffect)) {
             const cursors = e.value ?? {};
