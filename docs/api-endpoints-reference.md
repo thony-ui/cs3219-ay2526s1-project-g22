@@ -1,3 +1,8 @@
+<!-- AI Assistance Disclosure:
+Tool: GitHub Copilot
+Date: 2025-11-12
+Scope: Diagrams in this file were generated with AI assistance. All architectural decisions, API design, and documentation content were authored and reviewed by the project team; only diagram syntax/structure was produced by Copilot.
+Author review: I reviewed all AI-generated diagrams for technical accuracy, ensured they matched the intended architecture, and verified that no design or documentation content was produced by AI. All narrative and API details are original work. -->
 # PeerPrep API Endpoints Reference
 
 Quick reference guide for all available API endpoints in the PeerPrep platform.
