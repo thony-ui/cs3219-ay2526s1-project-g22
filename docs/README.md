@@ -1,3 +1,11 @@
+
+<!-- AI Assistance Disclosure:
+    Tool: GitHub Copilot
+    Date: 2025-11-12
+    Scope: Documentation in this file were generated with AI assistance. All architectural decisions, system design, and documentation content were authored and reviewed by the project team; only diagram syntax/structure was produced by Copilot.
+    Author review: I reviewed all AI-generated content for technical accuracy. All narrative and technical details are original work. -->
+
+
 # PeerPrep Documentation
 
 This directory contains comprehensive documentation for the PeerPrep project.

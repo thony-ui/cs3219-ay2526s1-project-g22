@@ -1,3 +1,10 @@
+
+<!-- AI Assistance Disclosure:
+Tool: GitHub Copilot
+Date: 2025-11-12
+Scope: Diagrams in this file were generated with AI assistance. All architectural decisions, sequence logic, and documentation content were authored and reviewed by the project team; only diagram syntax/structure was produced by Copilot.
+Author review: I reviewed all AI-generated diagrams for technical accuracy, ensured they matched the intended architecture and flows, and verified that no design or documentation content was produced by AI. All narrative and technical details are original work. -->
+
 sequenceDiagram
   autonumber
   participant J as Joining Client (Browser A)

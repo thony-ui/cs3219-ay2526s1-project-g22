@@ -1,3 +1,10 @@
+<!-- AI Assistance Disclosure:
+    Tool: GitHub Copilot
+    Date: 2025-11-12
+    Scope: Diagrams in this file were generated with AI assistance. All architectural decisions, system design, and documentation content were authored and reviewed by the project team; only diagram syntax/structure was produced by Copilot.
+    Author review: I reviewed all AI-generated diagrams for technical accuracy, ensured they matched the intended architecture, and verified that no design or documentation content was produced by AI. All narrative and technical details are original work. -->
+
+
 graph TB
     subgraph "Client Layer"
         UI[Next.js Frontend<br/>Vercel Deployed]

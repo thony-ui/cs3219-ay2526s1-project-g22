@@ -1,3 +1,12 @@
+##
+# AI Assistance Disclosure
+# Tool: GitHub Copilot
+# Date: 2025-11-12
+# Scope: The OpenAPI YAML structure in this file was generated with AI assistance. All API design, endpoint specifications, and documentation content were authored and reviewed by the project team; only the YAML syntax/boilerplate was produced by Copilot.
+# Author review: I reviewed all AI-generated YAML for technical accuracy, ensured it matched the intended API structure, and verified that no design or documentation content was produced by AI. All endpoint details and descriptions are original work.
+
+
+
 openapi: 3.0.3
 info:
   title: PeerPrep API Documentation
