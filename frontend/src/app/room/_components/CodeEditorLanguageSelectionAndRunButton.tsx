@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini
+Date: 2025-10-21
+Scope: Assisted implementing parts of the function according to user requirements.
+Author review: I verified correctness of the modifications by AI against requirements
+*/
 import {
   Select,
   SelectContent,

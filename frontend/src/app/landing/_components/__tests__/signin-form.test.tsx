@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Gemini 2.5 Flash, date: 2025-09-16
+Scope: Suggested tests covering a few edge cases specified by the user.
+Author review: I verified correctness of the modifications by AI against requirements. I fixed minor issues, improved clarity, and ran checks to confirm the UI works as expected.
+*/
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SignInForm } from "../signin-form";

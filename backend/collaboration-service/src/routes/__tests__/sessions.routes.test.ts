@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: Claude Sonnet 4.5, date: 15 Oct 2025
+Scope: Assisted with debugging using debug and test findings, fixed code to work correctly, and tidied up sections with small refactors. Also suggested tests for relevant edge cases.
+Author review: I verified behavior and ran tests, clarified the code, and fixed small implementation issues.
+*/
+
 // Mock all dependencies BEFORE importing anything else
 jest.mock("../../utils/supabase", () => ({
   supabase: {
@@ -247,6 +254,16 @@ describe("Sessions Routes - Unit Tests", () => {
     it("should retrieve session by id successfully", async () => {
       (sessionsService.getSessionById as jest.Mock).mockResolvedValue(
         mockSession
+      );
+
+      // Ensure the mocked authentication middleware sets the current user
+      // to one of the session participants so the request is authorized.
+      const { authenticateUser } = require("../authorization");
+      (authenticateUser as jest.Mock).mockImplementation(
+        (req: Request, res: Response, next: NextFunction) => {
+          req.user = { id: mockSession.interviewee_id };
+          next();
+        }
       );
 
       const response = await request(app).get("/sessions/session-123");

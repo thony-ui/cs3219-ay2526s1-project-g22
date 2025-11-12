@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini
+Date: 2025-11-02
+Scope: Assisted with implementing parts of the request logic and caught a few small issues
+Author review: I verified correctness of the modifications by AI against requirements .
+*/
 "use client";
 import { HistoryData } from "../types/HistoryData";
 

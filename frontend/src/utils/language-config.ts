@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Github Copilot, date: 2025-09-18
+Scope: Reviewed utility code, caught small issues, and suggested tidy-ups.
+Author review: I verified correctness of the modifications by AI against requirements.
+*/
 import { indentUnit } from "@codemirror/language";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";

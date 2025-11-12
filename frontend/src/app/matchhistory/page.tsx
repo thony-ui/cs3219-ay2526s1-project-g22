@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Claude Sonnet 4.5, date: 2025-10-28
+Scope: Reviewed the code, caught a few potential bugs, and suggested improvements to avoid them.
+Author review: I verified correctness of the modifications by AI against requirements. I fixed minor issues, checked display logic, and ran sample checks to confirm correctness.
+*/
 "use client";
 
 import Header from "@/app/_components/Header";

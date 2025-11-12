@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini
+Date: 2025-10-21
+Scope: Suggested tests covering edge cases highlighted by the user.
+Author review: I verified correctness of the modifications by AI against requirements and changed behvaiour of a couple fo test cases for clarity
+*/
 "use client";
 
 import React, { useEffect, useRef, useState } from "react";
@@ -150,7 +157,7 @@ export default function ChatPanel({
                 } ${isDeleting ? "opacity-50" : ""}`}
               >
                 <div className="text-xs text-slate-200 opacity-80 mb-1 flex items-center gap-2">
-                  <span>{mine ? "You" : m.sender_id}</span>
+                  <span>{mine ? "You" : "Peer"}</span>
                   {/* Delete link - only show on hover for own messages */}
                   {mine && hoveredMessageId === m.id && !isDeleting && (
                     <button

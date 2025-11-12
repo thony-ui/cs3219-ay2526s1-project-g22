@@ -1,3 +1,10 @@
+/*
+AI Assistance Disclosure:
+Tool: Deepseek R1
+Date: 2025-09-19
+Scope: Refactored code to reduce clutter and added a few explanatory comments.
+Author review: I verified correctness of the modifications by AI against requirements. I improved clarity in a few places and validated the updated component functions correctly.
+*/
 import { Badge } from "@/components/ui/badge";
 import React from "react";
 

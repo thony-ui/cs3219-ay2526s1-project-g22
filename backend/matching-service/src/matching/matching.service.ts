@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 01 Oct 2025
+Scope: Helped implement several functions to meet team's requirements and simplified code and added clarifying comments. Suggested tests for a few edge cases.
+Author review: I checked correctness, executed tests, and refined unclear implementations and did a bit of debugging minor issues.
+*/
 import {redisService} from '../services/redis.service';
 import {supabaseService} from '../services/supabase.service';
 import {logger} from '../utils/logger';

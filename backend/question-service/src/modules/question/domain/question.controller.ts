@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: Gemini 2.5 Flash, date: 12 Oct 2025
+Scope: Helped implement several functions according to the team's requirements and provided focused code cleanups.
+Author review: I validated correctness, clarified ambiguous code, and fixed minor implementation issues.
+*/
 import { Request, Response } from "express";
 import {
   findQuestionsByDifficulty,

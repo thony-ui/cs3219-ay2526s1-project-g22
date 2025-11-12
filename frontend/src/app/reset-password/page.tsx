@@ -1,3 +1,9 @@
+/*
+AI Assistance Disclosure:
+Tool: ChatGPT-5 mini, date: 2025-09-17
+Scope: Refactored parts to reduce clutter and added clarifying comments.
+Author review: I verified correctness of the modifications by AI against requirements. I cleaned up small messy implementations and ran quick checks to validate behavior.
+*/
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
