@@ -155,6 +155,9 @@ export default function CodeEditor({
   // over the original joinRealtimeChannel callback (avoids stale closures)
   const peerIdDisplayedRef = useRef<string | undefined>(undefined);
   const peerUsernameRef = useRef<string | undefined>(undefined);
+  // Track pending leave events to debounce quick reconnects (e.g., page refresh)
+  // Maps clientId -> { timeoutId, userName, timestamp }
+  const pendingLeavesRef = useRef<Record<string, { timeoutId: NodeJS.Timeout; userName: string; ts: number }>>({});
 
   const getPeerName = (id?: string, fallback?: string) => {
     if (!id) return fallback;
@@ -196,6 +199,53 @@ export default function CodeEditor({
         return Decoration.none;
       },
       update(decos, tr) {
+        // First, map decorations through document changes to adjust positions
+        if (tr.docChanged) {
+          try {
+            decos = decos.map(tr.changes);
+          } catch (err) {
+            // If mapping fails, clear decorations and rebuild from current state
+            decos = Decoration.none;
+          }
+          
+          // Also update the underlying cursor positions in remoteCursorsRef
+          // so they stay in sync with the document changes
+          const updatedCursors: Record<string, RemoteCursor> = {};
+          const docLength = tr.state.doc.length;
+          Object.keys(remoteCursorsRef.current || {}).forEach((cid) => {
+            const c = remoteCursorsRef.current[cid];
+            if (c && typeof c.head === "number") {
+              try {
+                // Clamp positions to valid range before mapping to prevent out-of-range errors
+                const clampedHead = Math.max(0, Math.min(c.head, docLength));
+                const clampedAnchor = typeof c.anchor === "number" 
+                  ? Math.max(0, Math.min(c.anchor, docLength)) 
+                  : clampedHead;
+                
+                // Map cursor positions through the document changes
+                const newHead = tr.changes.mapPos(clampedHead, 1);
+                const newAnchor = tr.changes.mapPos(clampedAnchor, 1);
+                
+                updatedCursors[cid] = {
+                  ...c,
+                  head: Math.max(0, Math.min(newHead, docLength)),
+                  anchor: Math.max(0, Math.min(newAnchor, docLength)),
+                };
+              } catch (err) {
+                // If mapping fails, clamp to document bounds
+                updatedCursors[cid] = {
+                  ...c,
+                  head: Math.max(0, Math.min(c.head, docLength)),
+                  anchor: typeof c.anchor === "number" 
+                    ? Math.max(0, Math.min(c.anchor, docLength)) 
+                    : Math.max(0, Math.min(c.head, docLength)),
+                };
+              }
+            }
+          });
+          remoteCursorsRef.current = updatedCursors;
+        }
+        
         for (const e of tr.effects) {
           if (e.is(setRemoteCursorsEffect)) {
             const cursors = e.value ?? {};
@@ -257,8 +307,6 @@ export default function CodeEditor({
             decos = set;
           }
         }
-        // map decorations through document changes
-        decos = decos.map(tr.changes);
         return decos;
       },
       provide: f => EditorView.decorations.from(f),
@@ -273,8 +321,16 @@ export default function CodeEditor({
         return RangeSet.empty as unknown as RangeSet<GutterMarker>;
       },
       update(markers, tr) {
-        // map markers through document changes
-        markers = markers.map(tr.changes);
+        // map markers through document changes first
+        if (tr.docChanged) {
+          try {
+            markers = markers.map(tr.changes);
+          } catch (err) {
+            // If mapping fails, clear markers and rebuild from current state
+            markers = RangeSet.empty as unknown as RangeSet<GutterMarker>;
+          }
+        }
+        
         for (const e of tr.effects) {
           if (e.is(setRemoteGutterEffect)) {
             const cursors = e.value ?? {};
@@ -285,39 +341,43 @@ export default function CodeEditor({
               const c = cursors[cid];
               if (!c || typeof c.head !== "number") return;
               const head = Math.max(0, Math.min(doc.length, c.head));
-              const line = tr.state.doc.lineAt(head);
-              class RemoteGutterMarker extends GutterMarker {
-                color: string;
-                baseLabel: string;
-                isSelf: boolean;
-                constructor(color: string, label: string, isSelf = false) {
-                  super();
-                  this.color = color;
-                  this.baseLabel = label;
-                  this.isSelf = isSelf;
-                  this.elementClass = "cm-remote-gutter-marker";
+              try {
+                const line = tr.state.doc.lineAt(head);
+                class RemoteGutterMarker extends GutterMarker {
+                  color: string;
+                  baseLabel: string;
+                  isSelf: boolean;
+                  constructor(color: string, label: string, isSelf = false) {
+                    super();
+                    this.color = color;
+                    this.baseLabel = label;
+                    this.isSelf = isSelf;
+                    this.elementClass = "cm-remote-gutter-marker";
+                  }
+                  toDOM(view?: EditorView) {
+                    const el = document.createElement("div");
+                    el.className = "cm-remote-gutter-dot";
+                    const label = this.baseLabel || "";
+                    const displayLabel = label + (this.isSelf ? " (You)" : "");
+                    el.title = displayLabel;
+                    // expose username and color as data attributes for tooltip handlers
+                    el.dataset.username = displayLabel;
+                    el.dataset.color = this.color;
+                    el.style.width = "10px";
+                    el.style.height = "10px";
+                    el.style.borderRadius = "50%";
+                    el.style.background = this.color;
+                    // remove horizontal margin so tooltip sits flush next to the gutter dot
+                    el.style.margin = "4px 0";
+                    el.style.boxShadow = `0 0 6px ${this.color}66`;
+                    return el;
+                  }
                 }
-                toDOM(view?: EditorView) {
-                  const el = document.createElement("div");
-                  el.className = "cm-remote-gutter-dot";
-                  const label = this.baseLabel || "";
-                  const displayLabel = label + (this.isSelf ? " (You)" : "");
-                  el.title = displayLabel;
-                  // expose username and color as data attributes for tooltip handlers
-                  el.dataset.username = displayLabel;
-                  el.dataset.color = this.color;
-                  el.style.width = "10px";
-                  el.style.height = "10px";
-                  el.style.borderRadius = "50%";
-                  el.style.background = this.color;
-                  // remove horizontal margin so tooltip sits flush next to the gutter dot
-                  el.style.margin = "4px 0";
-                  el.style.boxShadow = `0 0 6px ${this.color}66`;
-                  return el;
-                }
+                const marker = new RemoteGutterMarker(String(c.color || ""), String(c.userName || cid), cid === clientIdRef.current);
+                byLine.push(marker.range(line.from));
+              } catch (err) {
+                // Skip this marker if lineAt fails
               }
-              const marker = new RemoteGutterMarker(String(c.color || ""), String(c.userName || cid), cid === clientIdRef.current);
-              byLine.push(marker.range(line.from));
             });
             markers = RangeSet.of(byLine as readonly GutterRange[], true) as unknown as RangeSet<GutterMarker>;
           }
@@ -602,17 +662,40 @@ export default function CodeEditor({
             const sel = (pl.selection as { anchor: number; head: number } | undefined) || pl;
             const userMeta = (pl.user as Record<string, unknown>) || {};
             if (!cid || cid === clientIdRef.current) return;
+            
+            // Get current document length to clamp cursor positions
+            const docLength = editorViewRef.current?.state?.doc?.length ?? 0;
+            const rawHead = typeof sel.head === "number" ? sel.head : 0;
+            const rawAnchor = typeof sel.anchor === "number" ? sel.anchor : rawHead;
+            
+            // Clamp positions to valid document range
+            const clampedHead = Math.max(0, Math.min(rawHead, docLength));
+            const clampedAnchor = Math.max(0, Math.min(rawAnchor, docLength));
+            
+            const userName = String((userMeta as Record<string, unknown>)['name'] ?? cid);
+            
             const map = {
               ...(remoteCursorsRef.current || {}),
               [cid]: {
-                anchor: typeof sel.anchor === "number" ? sel.anchor : 0,
-                head: typeof sel.head === "number" ? sel.head : 0,
-                userName: String((userMeta as Record<string, unknown>)['name'] ?? cid),
+                anchor: clampedAnchor,
+                head: clampedHead,
+                userName,
                 color: pickColor(cid),
                 ts: typeof pl.ts === "number" ? pl.ts : Date.now(),
               } as RemoteCursor,
             } as Record<string, RemoteCursor>;
             remoteCursorsRef.current = map;
+            
+            // If we don't currently have a peer displayed in the header, or if
+            // this cursor update is from the currently displayed peer, update
+            // the header state to ensure the username is shown
+            if (!peerIdDisplayedRef.current || peerIdDisplayedRef.current === cid) {
+              setPeerIdDisplayed(cid);
+              peerIdDisplayedRef.current = cid;
+              setPeerUsernameState(userName);
+              peerUsernameRef.current = userName;
+            }
+            
             // update decorations and gutter markers in the editor if available
             try {
               editorViewRef.current?.dispatch({
@@ -927,42 +1010,61 @@ export default function CodeEditor({
           // don't show a toast for our own disconnect
           if (leftId && String(leftId) === String(clientIdRef.current)) return;
 
-          // If the peer that left is the one currently shown in the header,
-          // clear the displayed peer so the header no longer shows a departed user.
-          if (leftId && peerIdDisplayedRef.current && String(leftId) === String(peerIdDisplayedRef.current)) {
-            setPeerIdDisplayed(undefined);
-            peerIdDisplayedRef.current = undefined;
-            setPeerUsernameState(undefined);
-            peerUsernameRef.current = undefined;
-          }
-
-          // Remove remote cursor for the leaving peer so decorations/gutter
-          // markers disappear from the editor immediately.
-          try {
-            if (leftId && remoteCursorsRef.current && remoteCursorsRef.current[leftId]) {
-              const updated = { ...(remoteCursorsRef.current || {}) };
-              delete updated[leftId];
-              remoteCursorsRef.current = updated;
-              // dispatch editor update to refresh decorations and gutter
-              try {
-                editorViewRef.current?.dispatch({
-                  effects: [
-                    setRemoteCursorsEffect.of(updated),
-                    setRemoteGutterEffect.of(updated),
-                  ],
-                });
-              } catch (err) {
-                // ignore dispatch errors
-              }
+          // Debounce the leave event: delay processing for 2 seconds to allow
+          // for quick reconnects (e.g., page refresh). If the peer rejoins
+          // within this window, we'll cancel the leave processing.
+          if (leftId) {
+            // Clear any existing timeout for this peer
+            if (pendingLeavesRef.current[leftId]) {
+              clearTimeout(pendingLeavesRef.current[leftId].timeoutId);
             }
-          } catch (err) {
-            // ignore
-          }
+            
+            // Schedule the leave processing
+            const timeoutId = setTimeout(() => {
+              // Process the actual leave after debounce period
+              // If the peer that left is the one currently shown in the header,
+              // clear the displayed peer so the header no longer shows a departed user.
+              if (peerIdDisplayedRef.current && String(leftId) === String(peerIdDisplayedRef.current)) {
+                setPeerIdDisplayed(undefined);
+                peerIdDisplayedRef.current = undefined;
+                setPeerUsernameState(undefined);
+                peerUsernameRef.current = undefined;
+              }
 
-          try {
-            pushToast(`${name} left the page`);
-          } catch (err) {
-            // ignore
+              // Remove remote cursor for the leaving peer so decorations/gutter
+              // markers disappear from the editor.
+              try {
+                if (remoteCursorsRef.current && remoteCursorsRef.current[leftId]) {
+                  const updated = { ...(remoteCursorsRef.current || {}) };
+                  delete updated[leftId];
+                  remoteCursorsRef.current = updated;
+                  // dispatch editor update to refresh decorations and gutter
+                  try {
+                    editorViewRef.current?.dispatch({
+                      effects: [
+                        setRemoteCursorsEffect.of(updated),
+                        setRemoteGutterEffect.of(updated),
+                      ],
+                    });
+                  } catch (err) {
+                    // ignore dispatch errors
+                  }
+                }
+              } catch (err) {
+                // ignore
+              }
+
+              try {
+                pushToast(`${name} left the page`);
+              } catch (err) {
+                // ignore
+              }
+              
+              // Clean up the pending leave entry
+              delete pendingLeavesRef.current[leftId];
+            }, 2000); // 2 second debounce window
+            
+            pendingLeavesRef.current[leftId] = { timeoutId, userName: name, ts: Date.now() };
           }
         } catch (err) {
           console.warn("realtime: presence.leave handler error", err);
@@ -978,6 +1080,13 @@ export default function CodeEditor({
           if (!joinedId) return;
           // ignore our own join
           if (String(joinedId) === String(clientIdRef.current)) return;
+          
+          // Cancel any pending leave event for this peer (they reconnected quickly)
+          if (pendingLeavesRef.current[joinedId]) {
+            clearTimeout(pendingLeavesRef.current[joinedId].timeoutId);
+            delete pendingLeavesRef.current[joinedId];
+            console.log("realtime: cancelled pending leave for", joinedId, "(quick reconnect)");
+          }
 
           // send a direct broadcast asking the peer to identify themselves
           try {
@@ -1098,6 +1207,17 @@ export default function CodeEditor({
             const user = (pl.user as { id?: string; name?: string } | undefined) ?? {};
             if (!to || to !== clientIdRef.current) return;
             if (!from) return;
+            
+            // Check if this peer has a pending leave (quick reconnect scenario)
+            const wasPendingLeave = !!pendingLeavesRef.current[from];
+            
+            // Cancel any pending leave event for this peer
+            if (pendingLeavesRef.current[from]) {
+              clearTimeout(pendingLeavesRef.current[from].timeoutId);
+              delete pendingLeavesRef.current[from];
+              console.log("realtime: cancelled pending leave for", from, "(i-am received)");
+            }
+            
             // If we don't currently show a peer, adopt this one for the
             // header. If we already show a peer and this is the same id,
             // update the displayed name in case it changed.
@@ -1110,10 +1230,13 @@ export default function CodeEditor({
             setPeerUsernameState(displayName);
             peerUsernameRef.current = displayName;
 
-            try {
-              pushToast(`${displayName} joined the session`);
-            } catch (err) {
-              // ignore
+            // Only show "joined" toast if this is a true new join, not a quick reconnect
+            if (!wasPendingLeave) {
+              try {
+                pushToast(`${displayName} joined the session`);
+              } catch (err) {
+                // ignore
+              }
             }
           } catch (err) {
             // ignore
